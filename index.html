@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kessai</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans&display=swap"><style>
+:root{--s:3}
+*{box-sizing:border-box}
+body{margin:0;background:#1d1b2e;display:grid;place-items:center;min-height:100vh;font-family:'Pixelify Sans',Georgia,'Hiragino Mincho ProN',serif;color:#4a3328}
+#stage{position:relative;width:calc(320px*var(--s));height:calc(192px*var(--s));overflow:hidden;background:#000}
+canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+#hud{position:absolute;left:calc(var(--s)*4px);top:calc(var(--s)*4px);padding:calc(var(--s)*2px) calc(var(--s)*4px);background:rgba(244,232,206,.9);border:calc(var(--s)*1px) solid #8a6248;font-size:calc(var(--s)*4.5px);border-radius:calc(var(--s)*2px)}
+#dlg{position:absolute;left:calc(var(--s)*12px);right:calc(var(--s)*12px);bottom:calc(var(--s)*8px);min-height:calc(var(--s)*44px);padding:calc(var(--s)*9px) calc(var(--s)*10px) calc(var(--s)*6px);background:#f4e8ce;border:calc(var(--s)*2px) solid #8a6248;border-radius:calc(var(--s)*3px);box-shadow:0 0 0 calc(var(--s)*1px) #d9a066,0 0 0 calc(var(--s)*3px) #5a3420}
+#dlg[hidden],.panel[hidden]{display:none}
+#who{position:absolute;top:calc(var(--s)*-7px);left:calc(var(--s)*8px);padding:0 calc(var(--s)*6px);background:#d98fa0;color:#fff;font-weight:400;font-size:calc(var(--s)*5px);border-radius:calc(var(--s)*2px)}
+#who:empty{display:none}
+#txt{margin:0;font-size:calc(var(--s)*6px);line-height:1.5}
+#dlg i{position:absolute;right:calc(var(--s)*6px);bottom:calc(var(--s)*3px);color:#d98fa0;font-size:calc(var(--s)*5px)}
+.panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--s)*6px);text-align:center;background:rgba(36,30,52,.93);color:#f4e8ce;font-size:calc(var(--s)*5.5px)}
+.panel p{margin:0;line-height:1.7}
+h1{margin:0;font-weight:400;font-size:calc(var(--s)*20px);color:#f2b7c4;letter-spacing:.08em}
+h2{margin:0;font-weight:400;font-size:calc(var(--s)*12px);color:#f2b7c4}
+.sub{opacity:.7}
+button{font:inherit;color:#4a3328;background:#f4e8ce;border:calc(var(--s)*1.5px) solid #d98fa0;border-radius:calc(var(--s)*2px);padding:calc(var(--s)*2px) calc(var(--s)*10px);cursor:pointer;min-width:calc(var(--s)*60px)}
+button:hover,button:focus-visible{background:#f2b7c4;outline:none}
+#card{background:#0a0812;opacity:0;transition:opacity .8s}
+#card.on{opacity:1}
+#card p{opacity:0;transition:opacity 1.2s}
+#card p.on{opacity:1}
+#skip{position:absolute;right:calc(var(--s)*5px);bottom:calc(var(--s)*3px);font-size:calc(var(--s)*4px);color:#f4e8ce;opacity:.55;pointer-events:none}
+#skip[hidden]{display:none}
+#loading{background:#1d1b2e;z-index:9}
+#loading b{font-weight:400;font-size:calc(var(--s)*10px);color:#f2b7c4;animation:pulse 1.6s ease-in-out infinite}
+#bar{width:calc(var(--s)*80px);height:calc(var(--s)*6px);border:calc(var(--s)*1px) solid #d98fa0;border-radius:calc(var(--s)*2px);padding:calc(var(--s)*.5px)}
+#bar i{display:block;height:100%;width:0;background:#f2b7c4;border-radius:calc(var(--s)*1px)}
+#tip{opacity:.7;font-size:calc(var(--s)*4.5px);max-width:calc(var(--s)*220px)}
+@keyframes pulse{50%{opacity:.35;transform:scale(.88)}}
+#face{position:absolute;left:calc(var(--s)*8px);top:calc(var(--s)*-16px);width:calc(var(--s)*40px);height:calc(var(--s)*40px);image-rendering:pixelated;border:calc(var(--s)*2px) solid #1d1b2e;box-shadow:calc(var(--s)*2px) calc(var(--s)*2px) 0 #5a3420;background:#fff}
+#face[hidden]{display:none}
+#dlg.has{padding-left:calc(var(--s)*56px)}
+#dlg.has #who{left:calc(var(--s)*56px)}
+#face.tr{animation:shk .09s infinite}
+#face.bn{animation:bn .5s infinite}
+.shake{animation:shk .07s infinite}
+#stage.red::after{content:'';position:absolute;inset:0;background:rgba(170,20,40,.4);pointer-events:none}
+@keyframes shk{25%{transform:translate(calc(var(--s)*-1px),calc(var(--s)*1px))}75%{transform:translate(calc(var(--s)*1px),calc(var(--s)*-1px))}}
+@keyframes bn{50%{transform:translateY(calc(var(--s)*-1px))}}
+</style></head>
+<body><div id="stage">
+<canvas id="c" width="320" height="192"></canvas>
+<div id="hud"></div>
+<div id="dlg" hidden><canvas id="face" width="40" height="40" hidden></canvas><b id="who"></b><p id="txt"></p><i>▼</i></div>
+<div id="card" class="panel" hidden></div><div id="skip" hidden>X: pular cena</div>
+<div id="title" class="panel"><h1>Kessai</h1><p class="sub">Uma vila rural do Japão, 1895</p>
+<p>Mover: WASD ou setas<br>Interagir: Espaço ou E<br>Menu: Esc</p><button id="start">Começar</button></div>
+<div id="pause" class="panel" hidden><h2>Pausa</h2><button id="resume">Continuar</button><button id="speed">Texto: normal</button><button id="restart">Reiniciar</button></div>
+<div id="loading" class="panel"><b>✿</b><h1>Kessai</h1><div id="bar"><i></i></div><p id="tip"></p></div>
+</div>
+<script>
+/* ===== sprites.js ===== */
+// Pixel art procedural (tiles, personagens, objetos). Para usar PNGs, troque só este arquivo.
+const Art = (() => {
+  const tiles = {};
+  let seed = 7; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  const rect = (g, c, x, y, w, h) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  const paint = (ch, fn) => { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); fn((col, x, y, w = 1, h = 1) => rect(g, col, x, y, w, h)); tiles[ch] = c; };
+  const speckle = (r, cols, n) => { for (let i = 0; i < n; i++) r(cols[i % cols.length], rnd() * 15 | 0, rnd() * 15 | 0); };
+  const grass = r => { r('#9fc08a', 0, 0, 16, 16); speckle(r, ['#86ac75', '#b5d19b'], 22); };
+  paint('.', grass);
+  paint(',', r => { r('#e6cfa6', 0, 0, 16, 16); speckle(r, ['#d2b88a', '#f0dfbd'], 14); });
+  paint('=', r => { r('#dfe0b5', 0, 0, 16, 16); for (let y = 3; y < 16; y += 4) r('#cfd0a2', 0, y, 16); r('#b3b58a', 15, 0, 1, 16); r('#b3b58a', 0, 15, 16); });
+  paint('#', r => { r('#8a6248', 0, 0, 16, 16); r('#a07a5c', 0, 0, 16, 2); for (let x = 0; x < 16; x += 5) r('#6e4a34', x, 2, 1, 14); });
+  paint('S', r => { r('#f1e7cc', 0, 0, 16, 16); r('#c9b48a', 0, 0, 16); r('#c9b48a', 0, 8, 16); r('#c9b48a', 8, 0, 1, 16); r('#8a6248', 0, 15, 16); });
+  paint('R', r => { r('#6f7f95', 0, 0, 16, 16); for (let y = 0; y < 16; y += 4) { r('#56657c', 0, y + 3, 16); for (let x = (y / 4 % 2) * 4; x < 16; x += 8) r('#8d9db2', x, y, 4); } });
+  paint('D', r => { r('#c8a67e', 0, 0, 16, 16); r('#8a6248', 0, 0, 16); r('#8a6248', 7, 0, 2, 16); r('#e3c9a0', 2, 3, 4, 10); r('#e3c9a0', 10, 3, 4, 10); });
+  paint('~', r => { r('#8fb4c9', 0, 0, 16, 16); for (let i = 0; i < 4; i++) r('#b6d3e0', rnd() * 12 | 0, i * 4 + 1, 4); });
+  paint('f', r => { grass(r); [[3, 4], [10, 9], [6, 12]].forEach(([x, y], i) => { r('#6f9a64', x, y + 1, 1, 3); r(i ? '#f7efe6' : '#f2b7c4', x - 1, y - 1, 3, 2); r('#f0d28a', x, y); }); });
+  const tree = (ch, c1, c2) => { paint(ch, r => { grass(r); r('#7a5640', 6, 10, 4, 6); }); paint(ch + 'c', r => { r(c1, 1, 1, 14, 10); r(c1, 3, 0, 10, 12); r(c2, 4, 2, 5, 3); r(c2, 9, 6, 3, 2); }); };
+  tree('T', '#6f9a64', '#8fba80'); tree('K', '#f2b7c4', '#fbd6dd'); // T = árvore, K = cerejeira
+
+  // dir: 0 baixo, 1 cima, 2 esquerda, 3 direita | step: 0 parado, 1-4 ciclo de caminhada
+  // t: tempo (respiração, piscar, balanço do cabelo) | sc: assustada (olhos arregalados, braços erguidos)
+  function char(g, x, y, dir, step, p, t = 0, sc = false) {
+    const r = (c, a, b, w, h) => rect(g, c, x + a, y + b, w, h);
+    const m = (c, a, b, w, h) => r(c, dir === 3 ? 16 - a - w : a, b, w, h); // perfil direito = espelho do esquerdo
+    const walk = step > 0, ph = walk ? step - 1 : 0, bob = walk && ph % 2 ? 1 : 0;
+    const br = !walk && Math.sin(t * 2.4) > .55 ? 1 : 0, hy = bob + br, by = bob; // hy: cabeça/tronco sobem; by: quadril
+    const blink = !sc && t % 3.7 > 3.55, tip = Math.round(Math.sin(t * (walk ? 11 : 2.3)) * (walk ? .9 : .6));
+    const sw = sc ? -2 : walk ? [1, 0, -1, 0][ph] : 0, lf = [ph === 2 ? 1 : 0, ph === 0 ? 1 : 0]; // lf: pé levantado (esq, dir)
+    const hl = p.hl, ls = Math.max(0, Math.min(5, hl - 8)), bx = hl > 11 ? 2 : 3, mo = '#d98fa0';
+    const arm = (ax, ay, c = p.t) => { r(c, ax, ay, 2, 3); r(p.t2, ax, ay + 3, 2, 1); r(p.s, ax, ay + 4, 2, 1); };
+    r('rgba(30,24,48,.28)', 3, 20, 10, 2);
+    if (dir < 2) {
+      const al = sc ? -2 : sw, ar = sc ? -2 : -sw;
+      if (p.st) { r(p.b, 4, 15 - by, 8, 5 + by); r(p.b2, 4, 19, 8, 1); [5, 9].forEach((lx, i) => r(p.f, lx, 20 - lf[i], 2, 1)); }
+      else {
+        [5, 9].forEach((lx, i) => { const l = lf[i]; r(p.s, lx, 17 - by, 2, 2 - l + bob); r(p.f2, lx, 19 - l, 2, 1); r(p.f, i ? lx : lx - 1, 20 - l, 3, 1); });
+        r(p.b, 4, 15 - by, 8, 2); r(p.b2, 7, 16 - by, 2, 1); r(p.s, 5, 14 - by, 6, 1);
+      }
+      if (dir === 0) r(p.h, bx, 2 - hy, 16 - 2 * bx, hl - 1);
+      r(p.t, 4, 10 - hy, 8, 4 + br); if (p.st) r(p.o, 4, 13 - by, 8, 2); else r(p.t2, 4, 13 - by, 8, 1);
+      arm(2, 10 - hy + al); arm(12, 10 - hy + ar);
+      if (dir === 0) {
+        r(p.c, 6, 9 - hy, 4, 1); r(p.t2, 5, 10 - hy, 6, 1);
+        r(p.s, 4, 3 - hy, 8, 6); r(p.sh, 4, 7 - hy, 1, 1); r(p.sh, 11, 7 - hy, 1, 1);
+        [5, 9].forEach(e => {
+          if (sc) { r('#fff', e, 4 - hy, 2, 3); r(p.ey, e, 5 - hy, 1, 1); }
+          else if (blink) r(p.ey, e, 5 - hy, 2, 1);
+          else { r(p.ey, e, 4 - hy, 2, 1); r(p.e, e, 5 - hy, 2, 2); r('#e3f4ff', e, 5 - hy, 1, 1); r(p.ey, e + 1, 6 - hy, 1, 1); }
+        });
+        if (sc) r(p.ey, 7, 7 - hy, 2, 2); else r(mo, 7, 7 - hy, 2, 1);
+        if (p.bd) { r(p.bd, 6, 7 - hy, 4, 2); r(p.bd, 7, 9 - hy, 2, 1); }
+        if (ls) { r(p.h, 4, 8 - hy, 2, ls); r(p.h, 10, 8 - hy, 2, ls); r(p.h, 4 + tip, 8 - hy + ls, 1, 1); r(p.h, 11 - tip, 8 - hy + ls, 1, 1); }
+        r(p.h, 5, -hy, 6, 1); r(p.h, 4, 1 - hy, 8, 1); r(p.h, 3, 2 - hy, 10, 1); r(p.h, 4, 3 - hy, 8, 1);
+        r(p.h, 4, 4 - hy, 1, 1); r(p.h, 11, 4 - hy, 1, 1); r(p.h, 7, 4 - hy, 1, 1);
+        r(p.h2, 6, -hy, 2, 1); r(p.h2, 5, 2 - hy, 2, 1);
+        if (p.a) r(p.a, 10, 1 - hy, 2, 2);
+      } else {
+        r(p.h, 5, -hy, 6, 1); r(p.h, 4, 1 - hy, 8, 1); r(p.h, 3, 2 - hy, 10, 8);
+        if (hl > 9) { r(p.h, 4, 10 - hy, 8, hl - 9); r(p.h, 5 + tip, hl + 1 - hy, 4, 1); }
+        r(p.h2, 6, 3 - hy, 1, 5); r(p.h2, 9, 4 - hy, 1, 4);
+        if (p.a) r(p.a, 4, 1 - hy, 2, 2);
+      }
+      if (bx === 2) { r(p.h, 1, 5 - hy, 1, 1); r(p.h, 14, 6 - hy + tip, 1, 1); r(p.h, 1, 10 - hy - tip, 1, 1); } // mechas soltas
+    } else {
+      const sa = sc ? -2 : walk ? [-1, 0, 1, 0][ph] : 0, st = walk ? [2, 0, -2, 0][ph] : 0, ay = 10 - hy - (sc ? 2 : 0);
+      const sarm = (ax, c) => { m(c, ax, ay, 2, 3); m(p.t2, ax, ay + 3, 2, 1); m(p.s, ax, ay + 4, 2, 1); };
+      sarm(7 - sa, p.t2);
+      [[7 - st, lf[1], p.sd], [7 + st, lf[0], p.s]].forEach(([lx, l, c]) => {
+        if (p.st) m(p.f, lx, 20 - l, 2, 1);
+        else { m(c, lx, 17 - by, 2, 2 - l + bob); m(p.f2, lx, 19 - l, 2, 1); m(p.f, lx - 1, 20 - l, 3, 1); }
+      });
+      if (hl > 9) { m(p.h, 9, 9 - hy, 4, hl - 8); m(p.h, 10 - tip, hl + 1 - hy, 3, 1); }
+      if (p.st) { m(p.b, 4, 15 - by, 8, 5 + by); m(p.b2, 4, 19, 8, 1); } else { m(p.b, 5, 15 - by, 6, 2); m(p.s, 6, 14 - by, 4, 1); }
+      m(p.t, 5, 10 - hy, 6, 4 + br); if (p.st) m(p.o, 5, 13 - by, 6, 2); else m(p.t2, 5, 13 - by, 6, 1);
+      m(p.c, 6, 9 - hy, 3, 1); sarm(6 + sa, p.t);
+      m(p.s, 4, 3 - hy, 5, 6); m(p.s, 3, 6 - hy, 1, 1); m(p.sh, 6, 7 - hy, 1, 1);
+      if (sc) { m('#fff', 5, 4 - hy, 2, 3); m(p.ey, 5, 5 - hy, 1, 1); m(p.ey, 4, 7 - hy, 1, 2); }
+      else {
+        if (blink) m(p.ey, 5, 5 - hy, 2, 1);
+        else { m(p.ey, 5, 4 - hy, 2, 1); m(p.e, 5, 5 - hy, 2, 2); m('#e3f4ff', 6, 5 - hy, 1, 1); m(p.ey, 5, 6 - hy, 1, 1); }
+        m(mo, 4, 7 - hy, 1, 1);
+      }
+      if (p.bd) { m(p.bd, 4, 7 - hy, 3, 2); m(p.bd, 5, 9 - hy, 2, 1); }
+      m(p.h, 7, 3 - hy, 6, 6);
+      if (bx === 2) { m(p.h, 13, 6 - hy + tip, 1, 1); m(p.h, 13, 10 - hy - tip, 1, 1); }
+      m(p.h, 5, -hy, 6, 1); m(p.h, 4, 1 - hy, 8, 1); m(p.h, 4, 2 - hy, 9, 1); m(p.h, 4, 3 - hy, 6, 1); m(p.h, 4, 4 - hy, 1, 1);
+      m(p.h2, 6, -hy, 2, 1); m(p.h2, 9, 3 - hy, 1, 4);
+      if (p.a) m(p.a, 9, 1 - hy, 2, 2);
+    }
+  }
+  function obj(g, t, x, y) {
+    const r = (c, a, b, w, h) => rect(g, c, x + a, y + b, w, h);
+    if (t === 'easel') { r('#8a6248', 3, 14, 2, 2); r('#8a6248', 11, 14, 2, 2); r('#8a6248', 7, 2, 2, 14); r('#fbf4e4', 3, 3, 10, 9); r('#e9b9c1', 3, 3, 10, 1); }
+    if (t === 'chest') { r('#8a6248', 1, 5, 14, 10); r('#a07a5c', 1, 5, 14, 3); r('#d98fa0', 7, 5, 2, 10); r('#f0d28a', 7, 9, 2, 2); }
+    if (t === 'table') { r('#a07a5c', 0, 5, 32, 9); r('#8a6248', 1, 14, 3, 2); r('#8a6248', 28, 14, 3, 2); r('#f4e8ce', 12, 3, 6, 3); r('#9bb592', 13, 3, 4, 1); }
+    if (t === 'scroll') { r('#f4e8ce', 3, 1, 10, 14); r('#8a6248', 3, 0, 10, 1); r('#8a6248', 3, 15, 10, 1); r('#a9c0cf', 4, 3, 8, 6); r('#8a9e6c', 4, 9, 8, 3); r('#4b4458', 10, 10, 2, 2); }
+    if (t === 'sign') { r('#8a6248', 7, 6, 2, 10); r('#c8a67e', 2, 2, 12, 7); r('#6e4a34', 4, 4, 8, 1); r('#6e4a34', 4, 6, 6, 1); }
+    if (t === 'noren') { r('#8a6248', 0, 0, 16, 1); r('#5d6f8a', 1, 1, 6, 9); r('#5d6f8a', 9, 1, 6, 9); r('#f4e8ce', 3, 4, 2, 2); r('#f4e8ce', 11, 4, 2, 2); }
+  }
+  // h/h2 cabelo, s/sd/sh pele (normal/sombra/bochecha), e/ey olhos (íris/cílios), t/t2 roupa, c gargantilha/gola,
+  // b/b2 short ou saia, o faixa, a laço, bd barba, f/f2 calçado, hl comprimento do cabelo, st 1 = vestido/robe longo
+  const pal = {
+    koharu: { h: '#232a5c', h2: '#3d4a94', s: '#f6dcc6', sd: '#dcb59f', sh: '#f2a6b0', e: '#4aa3e8', ey: '#1a1d44', t: '#f6f3fb', t2: '#b9b0d8', c: '#8f86b8', b: '#2b2f5e', b2: '#1d2048', f: '#241f3a', f2: '#4d4872', hl: 13 },
+    hana: { h: '#7a5640', h2: '#9a7258', s: '#f6dcc6', sd: '#dcb59f', sh: '#f2a6b0', e: '#5a3a2a', ey: '#3a2a30', t: '#9bb592', t2: '#7fa078', c: '#7fa078', b: '#9bb592', b2: '#7fa078', o: '#f0b8a0', a: '#ffffff', f: '#8a6248', f2: '#8a6248', hl: 11, st: 1 },
+    genji: { h: '#b9b4bd', h2: '#dcd8e0', s: '#e8cdb2', sd: '#c9ab90', sh: '#e8b8a4', e: '#3a2a30', ey: '#3a2a30', t: '#6f7f95', t2: '#56657c', c: '#b9b4bd', b: '#6f7f95', b2: '#56657c', o: '#4b4458', bd: '#dcd8e0', f: '#4a3328', f2: '#4a3328', hl: 8, st: 1 }
+  };
+  return { tiles, char, obj, pal };
+})();
+
+/* ===== world.js ===== */
+// Mapas, colisão, portas, objetos e NPCs.
+const World = (() => {
+  const SOLID = '#RSTK~';
+  const grid = (w, h, f, ops) => { const g = Array.from({ length: h }, () => Array(w).fill(f)); ops.forEach(([c, x, y, a = 1, b = 1]) => { for (let j = y; j < y + b; j++) for (let i = x; i < x + a; i++) g[j][i] = c; }); return g; };
+  const K = (t, e) => ['Koharu', t, e];
+  const maps = {
+    casa: {
+      w: 20, h: 12, indoor: true, tint: 'rgba(255,190,140,.12)',
+      g: grid(20, 12, '=', [['#', 0, 1, 1, 11], ['#', 19, 1, 1, 11], ['#', 0, 11, 20], ['S', 0, 0, 20], ['D', 9, 11, 2]]),
+      doors: [{ x: 9, y: 11, w: 2, h: 1, to: 'vila', tx: 5, ty: 5 }],
+      objs: [
+        { t: 'easel', x: 14, y: 2, k: 'easel', text: [K('O cavalete da mamãe. O papel continua em branco, e eu ainda não sei se tenho coragem de sujá-lo.')] },
+        { t: 'chest', x: 3, y: 2, k: 'bau', text: [K('O baú de pincéis da mamãe. Embaixo das tintas, uma pilha de cartas amarradas com barbante.'), K('Ainda não consigo abrir nenhuma delas.')] },
+        { t: 'scroll', x: 6, y: 0, k: 'quadro', text: [K('Uma ponte sobre um rio, pintada pela mamãe.'), K('Tem uma mancha escura no canto. Umidade, provavelmente.')] },
+        { t: 'table', x: 8, y: 5, w: 2, text: [K('Chá frio. Esqueci de beber outra vez.')] }
+      ],
+      npcs: []
+    },
+    vila: {
+      w: 30, h: 16, tint: 'rgba(255,215,225,.07)',
+      g: grid(30, 16, '.', [
+        ['T', 0, 0, 30], ['T', 0, 15, 30], ['T', 0, 1, 1, 14], ['T', 29, 1, 1, 14],
+        [',', 1, 7, 25, 2], [',', 5, 5, 1, 2], [',', 23, 5, 1, 2],
+        ['R', 3, 2, 5, 2], ['#', 3, 4, 5], ['D', 5, 4], ['R', 21, 2, 5, 2], ['#', 21, 4, 5],
+        ['T', 26, 5, 3, 5], ['~', 17, 10, 5, 3],
+        ['K', 11, 2], ['K', 13, 1], ['K', 1, 11], ['T', 9, 12], ['T', 24, 12], ['T', 3, 13],
+        ['f', 2, 10], ['f', 8, 10], ['f', 13, 11], ['f', 22, 6], ['f', 11, 5], ['f', 15, 4], ['f', 19, 5], ['f', 6, 12]
+      ]),
+      doors: [{ x: 5, y: 4, w: 1, h: 1, to: 'casa', tx: 9, ty: 10 }],
+      objs: [
+        { t: 'noren', x: 23, y: 4, text: [K('Uma loja de papel e tintas. Hoje está fechada.')] },
+        { t: 'sign', x: 25, y: 7, text: [K('A trilha segue para dentro do bosque. Melhor não ir sozinha: não conheço o caminho.')] }
+      ],
+      npcs: [{
+        x: 13 * 16 + 8, y: 6 * 16 + 14, dir: 0, pal: 'hana',
+        talk: G => G.talked
+          ? [['Hana', 'Passe lá em casa qualquer dia. Eu mostro as flores brancas. Elas só crescem no nosso jardim!']]
+          : [['Hana', 'Ah! Você deve ser a Koharu. Minha mãe disse que alguém ia morar na casa velha.'], K('...Sim. Cheguei ontem.'),
+            ['Hana', 'Eu sou a Hana. Minha família cultiva flores, lá no fim da rua.'],
+            ['Hana', 'A vila é pequena, mas todo mundo vai querer te conhecer. Pode contar comigo, tá?'], K('Obrigada, Hana.')],
+        after: G => { G.talked = 1; }
+      }, {
+        x: 20 * 16 + 8, y: 6 * 16 + 14, dir: 2, pal: 'genji', on: G => G.talked,
+        talk: G => G.rumor ? [['Genji', 'Cuidado com o bosque, moça.']] : [
+          ['Genji', 'Você é a moça da casa velha, não é? Já ficou sabendo do que houve com o Takeshi?'],
+          ['Genji', 'Foi mordido por um cervo, perto do riacho. Dizem que o bicho parecia um morto andando, com a carne meio podre caindo do corpo.'],
+          ['Genji', 'Os homens saíram para caçá-lo. Reviraram o bosque por três noites.'],
+          ['Genji', 'Nunca acharam nem rastro. O cervo nunca mais foi visto.'],
+          K('Nem rastro... Como ele pode ter sumido assim?'),
+          ['Genji', 'Quem sabe? Só não ande sozinha por lá.']],
+        after: G => { G.rumor = 1; }
+      }, { // Takeshi: três estágios, cada vez mais tomado pelo mal
+        x: 8 * 16 + 8, y: 9 * 16 + 14, dir: 0, get pal() { return 'take' + Math.min(G.tk, 2); }, on: G => G.rumor && !G.gone,
+        talk: G => [
+          [['Takeshi', 'Ah... a moça nova. Desculpe, estou meio tonto. A febre não passa há três dias.', 's'], K('Esse curativo no seu braço... foi o cervo?', 's'),
+            ['Takeshi', 'Foi só uma mordida. Mas arde como se o osso apodrecesse por dentro.', 's'], ['Takeshi', 'À noite eu ouço o riacho me chamando. É bobagem, não é?', 'n'], K('...Descanse, Takeshi. Por favor.', 's')],
+          [['Takeshi', 'Você de novo. Por que todo mundo me olha desse jeito?!', 'a'], K('Eu só queria saber se você melhorou...', 'x'),
+            ['Takeshi', 'Melhorar? Eu tenho fome, moça. Uma fome que comida nenhuma resolve.', 'a'], ['Takeshi', 'Aquele maldito cervo... os dentes dele ainda estão em mim.', 'a'],
+            ['Takeshi', 'Sai daqui. Antes que eu faça algo de que me arrependa.', 'a']],
+          [['Takeshi', '...Ela me chama. Todas as noites, no riacho.', 'd']]
+        ][G.tk],
+        after: G => { G.tk++; }
+      }]
+    }
+  };
+  const npcs = m => m.npcs.filter(n => !n.on || n.on(G));
+  function hit(m, l, t, r, b) {
+    if (l < 0 || t < 0 || r >= m.w * 16 || b >= m.h * 16) return true;
+    for (let j = Math.floor(t / 16); j <= Math.floor(b / 16); j++) for (let i = Math.floor(l / 16); i <= Math.floor(r / 16); i++) if (SOLID.includes(m.g[j][i])) return true;
+    const ov = (x, y, w, h) => l < x + w && r >= x && t < y + h && b >= y;
+    return m.objs.some(o => ov(o.x * 16, o.y * 16, (o.w || 1) * 16, 16)) || npcs(m).some(n => ov(n.x - 5, n.y - 5, 10, 5));
+  }
+  function at(m, px, py) {
+    return npcs(m).find(n => px >= n.x - 8 && px < n.x + 8 && py >= n.y - 20 && py < n.y + 2) ||
+      m.objs.find(o => px >= o.x * 16 && px < (o.x + (o.w || 1)) * 16 && py >= o.y * 16 && py < o.y * 16 + 16);
+  }
+  return { maps, hit, at, npcs };
+})();
+
+/* ===== player.js ===== */
+// Movimento e alcance de interação da Koharu (separado da lógica narrativa).
+const Player = {
+  x: 0, y: 0, scare: 0, dir: 0, step: 0, t: 0, moving: false,
+  place(tx, ty) { this.x = tx * 16 + 8; this.y = ty * 16 + 14; },
+  try(map, dx, dy) { const x = this.x + dx, y = this.y + dy; if (!World.hit(map, x - 5, y - 5, x + 5, y - 0.01)) { this.x = x; this.y = y; } },
+  update(dt, map, k) {
+    if (this.scare > 0) { this.moving = false; this.step = 0; return; }
+    const dx = (k.right ? 1 : 0) - (k.left ? 1 : 0), dy = (k.down ? 1 : 0) - (k.up ? 1 : 0);
+    this.moving = !!(dx || dy);
+    if (!this.moving) { this.t = 0; this.step = 0; return; }
+    if (dy) this.dir = dy > 0 ? 0 : 1;
+    if (dx) this.dir = dx > 0 ? 3 : 2;
+    const v = 60 * dt / (dx && dy ? 1.414 : 1);
+    this.try(map, dx * v, 0); this.try(map, 0, dy * v);
+    this.t += dt; this.step = 1 + Math.floor(this.t * 9) % 4;
+  },
+  reach() { const d = [[0, 1], [0, -1], [-1, 0], [1, 0]][this.dir]; return [this.x + d[0] * 10, this.y - 5 + d[1] * 10]; }
+};
+
+/* ===== dialogue.js ===== */
+// Caixa de diálogo com efeito de máquina de escrever. Linhas: [['Nome', 'texto'], ...]
+const Dialogue = {
+  active: false, lines: [], i: 0, shown: 0, full: '', cb: null, speed: 40,
+  box: document.getElementById('dlg'), who: document.getElementById('who'), txt: document.getElementById('txt'),
+  start(lines, cb) { this.lines = lines; this.i = 0; this.cb = cb; this.active = true; this.box.hidden = false; this.show(); },
+  show() { const [w, t, e] = this.lines[this.i]; this.who.textContent = w; Face.set(w, t, e); this.box.classList.toggle('has', !Face.cv.hidden); this.full = t; this.shown = 0; this.txt.textContent = ''; },
+  update(dt) {
+    if (!this.active) return; Face.draw(dt, this.shown < this.full.length); if (this.shown >= this.full.length) return;
+    const a = this.shown | 0; this.shown = Math.min(this.full.length, this.shown + dt * this.speed);
+    const b = this.shown | 0; this.txt.textContent = this.full.slice(0, b);
+    if (b !== a && b % 3 === 0) Sfx.blip();
+  },
+  advance() {
+    if (this.shown < this.full.length) { this.shown = this.full.length; this.txt.textContent = this.full; return; }
+    if (++this.i < this.lines.length) return this.show();
+    const cb = this.cb; this.stop(); if (cb) cb();
+  },
+  stop() { this.active = false; this.cb = null; this.box.hidden = true; }
+};
+
+/* ===== ambient.js ===== */
+// Vida do cenário: folhas balançando, pássaros e vultos que assustam os personagens.
+const Ambient = {
+  t: 0, birds: [], nb: 4, v: null, next: 20 + Math.random() * 15, talk: 0, cam: [0, 0],
+  reset() { this.v = null; this.talk = 0; this.next = 20 + Math.random() * 15; },
+  sway(i, j) { return Math.round(Math.sin(this.t * 1.4 + i * .7 + j * 1.3) * .75); },
+  update(dt) {
+    this.t += dt;
+    [Player, ...World.npcs(G.map)].forEach(e => { if (e.scare > 0) e.scare -= dt; });
+    if (!G.map.indoor && (this.nb -= dt) < 0) {
+      this.nb = 6 + Math.random() * 10; const r = Math.random() < .5, n = 1 + (Math.random() < .5);
+      for (let k = 0; k < n; k++) this.birds.push({ x: (r ? -6 : 326) + k * (r ? -12 : 12), y: 8 + Math.random() * 60, v: (r ? 1 : -1) * (14 + Math.random() * 8), p: Math.random() * 6 });
+    }
+    this.birds.forEach(b => { b.x += b.v * dt; b.p += dt * 7; });
+    this.birds = this.birds.filter(b => b.x > -30 && b.x < 350);
+    if (this.talk > 0 && (this.talk -= dt) <= 0 && !Dialogue.active && !Cut.active)
+      Dialogue.start(Math.random() < .5 ? [['Koharu', '...! Tinha alguém ali.', 'x'], ['Koharu', 'Só o vento. Deve ser só o vento.', 's']] : [['Koharu', 'Que estranho... senti que alguém me olhava.', 'x']], null);
+    if (Dialogue.active || G.fade || Cut.active) return;
+    const v = this.v;
+    if (v) {
+      v.age += dt;
+      if (Math.hypot(Player.x - v.x, Player.y - v.y) < 30) v.max = Math.min(v.max, v.age + .4);
+      if (v.age >= v.max) this.v = null;
+    } else if ((this.next -= dt) < 0) this.spawn();
+  },
+  spawn() {
+    this.next = 35 + Math.random() * 35;
+    const [cx, cy] = this.cam;
+    for (let n = 0; n < 15; n++) {
+      const x = cx + 12 + Math.random() * 296, y = cy + 24 + Math.random() * 156;
+      if (Math.hypot(x - Player.x, y - Player.y) < 55 || World.hit(G.map, x - 4, y - 4, x + 4, y)) continue;
+      this.v = { x, y, age: 0, max: 2.2 + Math.random() };
+      Sfx.whisper();
+      if (Math.random() < .7) { // Koharu se assusta (às vezes)
+        Player.scare = .7; const dx = x - Player.x, dy = y - Player.y;
+        Player.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 2) : (dy > 0 ? 0 : 1);
+        if (Math.random() < .5) this.talk = 1.1;
+      }
+      World.npcs(G.map).forEach(p => { if (Math.hypot(p.x - x, p.y - y) < 130 && Math.random() < .6) p.scare = .7; });
+      return;
+    }
+  },
+  char(g, e, x, y, dir, step, pal) {
+    const h = e.scare > 0 ? Math.round(Math.abs(Math.sin(e.scare * 9)) * 3) : 0;
+    Art.char(g, x, y - h, dir, step, pal, this.t + (e === Player ? 0 : e.x * .37), e.scare > 0);
+    if (e.scare > 0) { g.fillStyle = '#4b4458'; g.fillRect(x + 6, y - 10 - h, 4, 8); g.fillStyle = '#fff'; g.fillRect(x + 7, y - 9 - h, 2, 4); g.fillRect(x + 7, y - 4 - h, 2, 1); }
+  },
+  drawWorld(g) { // vulto: silhueta feminina escura, só sugerida
+    const v = this.v; if (!v) return;
+    g.fillStyle = `rgba(22,16,36,${(Math.min(v.age / .7, (v.max - v.age) / .8, 1) * .7).toFixed(2)})`;
+    const x = Math.round(v.x), y = Math.round(v.y), j = r => Math.round(Math.sin(this.t * 18 + r) * .8);
+    g.fillRect(x - 3, y - 20, 6, 6); g.fillRect(x - 4, y - 15, 2, 12);
+    for (let r = 0; r < 14; r++) g.fillRect(x - 3 - (r >> 1) + j(r), y - 14 + r, 6 + (r >> 1) * 2, 1);
+  },
+  drawBirds(g) {
+    g.fillStyle = '#4b4458';
+    this.birds.forEach(b => { const x = b.x | 0, y = (b.y + Math.sin(b.p * .5) * 2) | 0, w = Math.sin(b.p) > 0 ? -1 : 1; g.fillRect(x, y, 2, 1); g.fillRect(x - 2, y + w, 2, 1); g.fillRect(x + 2, y + w, 2, 1); });
+  }
+};
+
+/* ===== faces.js ===== */
+// Retratos estilo Omori: quadradinho com rosto detalhado, emoção e boca animada enquanto fala.
+// Emoções: n neutro, h feliz, s triste, a raiva, x medo, o surpresa, d possuído. Use ['Nome','texto','emoção'].
+Object.assign(Art.pal, (() => {
+  const t = (inf, s, e, ey) => ({ h: '#3a2a22', h2: '#5a4236', s, sd: '#cdb39c', sh: '#e8b8a4', e, ey, t: '#6f8a7a', t2: '#4f6a5c', c: '#4f6a5c', b: '#4a4a5e', b2: '#35354a', f: '#4a3328', f2: '#4a3328', hl: 6, inf });
+  return { take0: t(1, '#e2cdb6', '#5a3a2a', '#3a2a30'), take1: t(2, '#cfc2b2', '#9a3b2b', '#2a1a20'), take2: t(3, '#b7b3a6', '#e0302a', '#1a0a10') };
+})());
+const Face = {
+  cv: document.getElementById('face'), who: '', emo: 'n', t: 0,
+  pal(w) { return { Koharu: 'koharu', Hana: 'hana', Genji: 'genji', Takeshi: 'take' + Math.min(G.tk, 2) }[w]; },
+  guess(w, t) { // emoção padrão quando a fala não indica nenhuma
+    if (/^\.\.\./.test(t) || /Ainda não|Esqueci|Cuidado|podre|sozinha|rastro/.test(t)) return 's';
+    return /[!?]/.test(t) ? (w === 'Hana' ? 'h' : 'o') : (w === 'Hana' ? 'h' : 'n');
+  },
+  set(w, t, e) { this.who = w; this.emo = e || this.guess(w, t); this.cv.hidden = !this.pal(w); this.cv.className = 'axd'.includes(this.emo) ? 'tr' : this.emo === 'h' ? 'bn' : ''; },
+  draw(dt, talk) {
+    const p = Art.pal[this.pal(this.who)]; if (!p) return;
+    const t = this.t += dt, e = this.emo, g = this.cv.getContext('2d'), inf = p.inf || 0, dark = e === 'd', big = e === 'x' || e === 'o';
+    const r = (c, x, y, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    const blink = !dark && t % 3.7 > 3.55, open = talk && Math.sin(t * 16) > 0, mo = '#c0586b';
+    r({ h: '#ffe9b8', s: '#d5deee', a: '#f3b1a8', x: '#ddd5ee', d: '#2b1523' }[e] || '#fdf6e3', 0, 0, 40, 40);
+    r(p.h, 7, 5, 26, p.hl > 9 ? 33 : 17);                                   // cabelo de trás
+    r(p.t, 5, 33, 30, 7); r(p.c, 15, 33, 10, 2); r(p.s, 17, 29, 6, 5); r(p.sd, 17, 31, 6, 2); // corpo e pescoço
+    r(p.s, 11, 9, 18, 20); r(p.s, 10, 12, 20, 13); r(p.sd, 12, 27, 16, 2);   // rosto
+    if (p.bd) r(p.bd, 12, 24, 16, 6);                                        // barba
+    if (!dark && !big && inf < 2) { r(p.sh, 11, 22, 3, 2); r(p.sh, 26, 22, 3, 2); }
+    [13, 22].forEach((x, i) => {
+      const [yo, yi] = { h: [12, 12], s: [14, 12], a: [12, 15], x: [11, 11], o: [11, 11] }[e] || [13, 13];
+      for (let k = 0; k < 5; k++) r(p.h, x + k, Math.round(yo + (yi - yo) * Math.abs(k - (i ? 4 : 0)) / 4), 1, 2); // sobrancelha
+      if (dark) { r('#0d0610', x, 16, 5, 5); r('#ff2a2a', x + 2, 18, 2, 2); }
+      else if (e === 'h' && !blink) { r(p.ey, x, 19); r(p.ey, x + 1, 18, 3); r(p.ey, x + 4, 19); }
+      else if (blink) r(p.ey, x, 18, 5, 1);
+      else {
+        const y = big ? 15 : 16, hh = big ? 6 : 5;
+        r('#fff', x, y, 5, hh); r(p.e, x + 1, y + 1, 3, hh - 1); r(p.ey, x + 2, y + 2, big ? 1 : 2, big ? 1 : 2); r('#fff', x + 1, y + 1);
+        r(p.ey, x, y - 1, 5, 1); if (e === 's') { r(p.s, x, y, 5, 1); r('#8fd0ff', x + (i ? 4 : 0), y + hh, 1, 2 + ((t * 3) | 0) % 2); }
+      }
+      if (inf) { r('rgba(80,40,90,.45)', x, 21, 5, 1); if (inf > 1) r('#7a4a8a', x + (i ? 5 : -2), 12, 1, 8); if (inf > 2) r('#7a4a8a', x + (i ? 1 : 2), 21, 1, 5); }
+    });
+    if (inf > 2) { r('#6f7a5a', 23, 24, 4, 3); r('#4a2a5a', 12, 10, 2, 5); }  // pele apodrecendo
+    if (e === 'x') r('#8fd0ff', 31, 12, 2, 3);                                // gota de suor
+    if (dark) { r('#0d0610', 15, 23, 10, 4); for (let k = 15; k < 25; k += 2) r('#e8e0d0', k, 23, 1, 2); }
+    else if (open) { r('#6a2a3a', 17, 24, 6, 3); r(mo, 18, 26, 4, 1); }
+    else if (e === 'a') { r('#2a1a20', 16, 24, 8, 2); r('#fff', 17, 24, 6, 1); }
+    else if (big) { r('#6a2a3a', 18, 24, 4, 3); }
+    else if (e === 'h') { r(mo, 16, 23); r(mo, 17, 24, 6); r(mo, 23, 23); r('#fff', 18, 24, 4, 1); }
+    else if (e === 's') { r(mo, 18, 24, 4); r(mo, 17, 25); r(mo, 22, 25); }
+    else r(mo, 18, 25, 4);
+    r(p.h, 9, 5, 22, 6); r(p.h, 10, 9, 20, 2); r(p.h, 9, 9, 3, 10); r(p.h, 28, 9, 3, 10); r(p.h2, 12, 7, 6, 1); // franja
+    if (p.hl > 9) { r(p.h, 7, 9, 4, 28); r(p.h, 29, 9, 4, 28); }
+    if (p.a) r(p.a, 27, 4, 5, 4);
+  }
+};
+
+/* ===== cutscene.js ===== */
+// Cutscenes: roteiros async. Cada "await Cut.x()" é um passo da cena; X pula a cena inteira.
+// Para criar outra: escreva uma função em Scenes e chame Cut.play(Scenes.minhaCena, callbackOpcional).
+const Cut = {
+  active: false, skip: false, jobs: [], a: 0, bars: 0, focus: null, sayR: 0, id: null,
+  job(u) { if (this.skip) { u(1e9); return Promise.resolve(); } return new Promise(r => this.jobs.push({ u, r })); },
+  wait(s) { let t = s; return this.job(dt => (t -= dt) <= 0); },
+  fade(to, d = 1) { const f = this.a; let t = 0; return this.job(dt => (this.a = f + (to - f) * Math.min(1, (t += dt) / d), t >= d)); },
+  pan(x, y, d = 2) { const c = this.focus = this.focus || { x: Player.x, y: Player.y }, fx = c.x, fy = c.y; let t = 0; return this.job(dt => { const k = Math.min(1, (t += dt) / d); c.x = fx + (x - fx) * k; c.y = fy + (y - fy) * k; return k >= 1; }); },
+  walk(e, x, y, v = 34) { return this.job(dt => { const dx = x - e.x, dy = y - e.y, d = Math.hypot(dx, dy), s = v * dt; if (d <= s) { e.x = x; e.y = y; e.step = 0; return true; } e.x += dx / d * s; e.y += dy / d * s; e.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 2) : (dy > 0 ? 0 : 1); e.t = (e.t || 0) + dt; e.step = 1 + Math.floor(e.t * 9) % 4; return false; }); },
+  say(lines) { return this.skip ? Promise.resolve() : new Promise(r => { this.sayR = r; Dialogue.start(lines, () => { this.sayR = 0; r(); }); }); },
+  async card(lines, hold = 1.5) { // tela preta com texto que surge linha a linha
+    if (this.skip) return;
+    const el = $('card'); el.innerHTML = lines.map(l => `<p>${l}</p>`).join(''); el.className = 'panel'; el.hidden = false;
+    await this.wait(.05); el.classList.add('on');
+    for (const p of [...el.children]) { await this.wait(1.2); p.classList.add('on'); Sfx.blip(260); }
+    await this.wait(hold); el.classList.remove('on'); await this.wait(.9); el.hidden = true;
+  },
+  fx(c, ms) { const s = $('stage'); s.classList.add(c); setTimeout(() => s.classList.remove(c), ms); }, // shake / red
+  skipAll() { this.skip = true; $('card').hidden = true; Dialogue.stop(); const j = this.jobs; this.jobs = []; j.forEach(o => o.r()); if (this.sayR) this.sayR(); },
+  play(script, cb) {
+    this.stop(); this.active = true; $('hud').hidden = true; $('skip').hidden = false;
+    const id = this.id = {};
+    script().catch(console.error).then(() => { if (this.id === id) { this.stop(); if (cb) cb(); } });
+  },
+  stop() { this.active = this.skip = false; this.jobs = []; this.sayR = 0; this.a = 0; this.focus = this.id = G.tint = null; $('card').hidden = $('skip').hidden = true; $('hud').hidden = false; },
+  update(dt) {
+    this.bars = Math.max(0, Math.min(1, this.bars + (this.active ? 2 : -2) * dt));
+    const run = this.jobs; this.jobs = []; run.forEach(o => o.u(dt) ? o.r() : this.jobs.push(o));
+  },
+  draw(g) { // fade e barras de cinema
+    if (this.a > 0) { g.fillStyle = `rgba(10,8,18,${this.a})`; g.fillRect(0, 0, W, H); }
+    const b = Math.round(this.bars * 16); if (b) { g.fillStyle = '#0a0812'; g.fillRect(0, 0, W, b); g.fillRect(0, H - b, W, b); }
+  }
+};
+const kh = (t, e) => ['Koharu', t, e], nar = t => ['', t];
+const Scenes = {
+  async intro() { // chegada à vila, no fim da tarde
+    Cut.a = 1; Player.scare = 0; G.tint = 'rgba(255,140,80,.16)'; load('vila', 1, 7); Player.dir = 3; Cut.focus = { x: 208, y: 56 };
+    await Cut.card(['Interior do Japão, primavera de 1895.', 'Vila de Kessai.']);
+    await Cut.fade(0, 1.6);
+    await Cut.say([nar('Kessai. Era assim que mamãe chamava a vila onde nasceu.'), nar('Ela deixou este lugar muito antes de eu nascer, e nunca me contou o motivo.')]);
+    await Cut.pan(Player.x, Player.y, 2.2);
+    await Cut.say([nar('Agora mamãe se foi. Ficaram uma casa velha, um cavalete e perguntas sem resposta.'), kh('Então é aqui...')]);
+    Cut.focus = null;
+    await Cut.walk(Player, 88, 126); await Cut.walk(Player, 88, 74);
+    await Cut.say([kh('A casa da mamãe. Ela dizia que cada quadro guardava um segredo.'), kh('Vamos ver o que ela deixou para mim.')]);
+    await Cut.fade(1, 1.2);
+    await Cut.card(['Na manhã seguinte...'], 1);
+    load('casa', 9, 8); Player.dir = 0; G.tint = null;
+    await Cut.fade(0, 1.6);
+  },
+  async takeshi() { // o mal toma conta de vez: Takeshi ataca e foge para o bosque
+    const T = World.maps.vila.npcs[2], m = G.map, cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const dx = Math.sign(Player.x - T.x), dy = Math.sign(Player.y - T.y) || 0;
+    await Cut.wait(.5); Cut.fx('shake', 600); Sfx.whisper(); Player.scare = 2;
+    await Cut.say([['Takeshi', 'Ele está dentro de mim... e está com fome.', 'd']]);
+    await Cut.walk(T, T.x + dx * 6, T.y + dy * 6, 140); Cut.fx('red', 450); Cut.fx('shake', 450); Sfx.blip(80); Sfx.blip(60);
+    await Cut.walk(Player, cl(Player.x + dx * 34, 16, m.w * 16 - 16), cl(Player.y + dy * 34, 24, m.h * 16 - 8), 220); Player.dir = dx > 0 ? 2 : dx < 0 ? 3 : dy > 0 ? 1 : 0;
+    await Cut.say([kh('Takeshi...!', 'x'), ['Takeshi', 'Sai... SAI DA MINHA FRENTE!', 'a'], ['Takeshi', 'Corre, moça... antes que eu... AAARGH!', 'a']]);
+    Cut.fx('shake', 500); await Cut.walk(T, 24 * 16 + 8, 7 * 16 + 14, 100);
+    G.gone = 1; await Cut.wait(.6);
+    await Cut.say([kh('Aqueles olhos... não eram os dele.', 'x'), kh('O que quer que esteja no bosque, ele já está levando a vila.', 's')]);
+    objective();
+  },
+  async bosque() { // depois do boato do Genji: um vulto perto da trilha
+    await Cut.wait(.5); await Cut.pan(25 * 16, 7 * 16, 1.6);
+    Sfx.whisper(); const v = Ambient.v = { x: 408, y: 142, age: 0, max: 3 };
+    for (const a of [.3, .6, .9]) { v.age = a; await Cut.wait(.3); }
+    Player.dir = 3; Player.scare = 1.2; World.npcs(G.map).forEach(n => n.scare = 1);
+    await Cut.wait(1.4);
+    for (const a of [2.4, 2.7, 3]) { v.age = a; await Cut.wait(.25); }
+    Ambient.v = null;
+    await Cut.pan(Player.x, Player.y, 1.4); Cut.focus = null;
+    await Cut.say([kh('Genji... você viu alguém perto da placa?', 'x'), ['Genji', 'Não há ninguém ali, moça. Faz muito tempo que ninguém passa por aquela trilha.'], kh('(Eu vi. Tenho certeza de que vi.)', 's')]);
+  }
+};
+const TIPS = ['Examine tudo: os objetos guardam o que as pessoas não dizem.', 'Converse com todos na vila, mais de uma vez.', 'Esc pausa o jogo a qualquer momento.', 'Nas cenas, aperte X para pular.', 'Nem toda sombra é só o vento.'];
+function loadScreen(sec, cb) { // tela de carregamento com barra e dicas
+  const L = $('loading'), bar = L.querySelector('i'), t0 = performance.now();
+  $('tip').textContent = TIPS[Math.random() * TIPS.length | 0]; bar.style.width = '0'; L.hidden = false;
+  const step = now => { const p = Math.max(0, Math.min(1, (now - t0) / (sec * 1000))); bar.style.width = p * p * (3 - 2 * p) * 100 + '%'; if (p < 1) requestAnimationFrame(step); else setTimeout(() => { L.hidden = true; cb(); }, 300); };
+  requestAnimationFrame(step);
+}
+
+/* ===== main.js ===== */
+// Ciclo principal, entrada, câmera, renderização, menus e objetivos.
+const $ = id => document.getElementById(id);
+const W = 320, H = 192;
+const cv = $('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+const G = { mode: 'title', map: null, id: '', seen: {}, talked: 0, rumor: 0, fade: null, s2: 0, tk: 0, s3: 0, gone: 0, tint: null };
+const keys = {};
+const Sfx = { ctx: null, whisper() {
+  try { const a = this.ctx = this.ctx || new AudioContext(), n = a.sampleRate * .9, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n);
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), v = a.createGain(); s.buffer = b; f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 3; v.gain.value = .05;
+    s.connect(f).connect(v).connect(a.destination); s.start(); } catch (e) {} },
+  blip(f = 520) {
+  try { const a = this.ctx = this.ctx || new AudioContext(), o = a.createOscillator(), v = a.createGain();
+    o.type = 'triangle'; o.frequency.value = f; v.gain.setValueAtTime(.03, a.currentTime); v.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .06);
+    o.connect(v).connect(a.destination); o.start(); o.stop(a.currentTime + .07); } catch (e) {} } };
+
+function objective() {
+  const n = ['easel', 'bau', 'quadro'].filter(k => G.seen[k]).length;
+  $('hud').textContent = 'Objetivo: ' + (n < 3 ? `examinar os pertences da casa (${n}/3)` : !G.talked ? 'sair e conhecer a vila' : !G.rumor ? 'passear pela vila' : (G.gone ? 'descobrir o que tomou conta do Takeshi' : 'procurar quem conheça o bosque'));
+}
+function load(id, tx, ty) { G.id = id; G.map = World.maps[id]; Player.place(tx, ty); }
+function newGame() {
+  G.seen = {}; G.talked = G.rumor = G.s2 = G.tk = G.s3 = G.gone = 0; Ambient.reset(); G.fade = null; Dialogue.stop();
+  Cut.play(Scenes.intro, () => { objective(); Dialogue.start([['', 'Primeiro dia na casa nova. Tudo ainda tem cheiro de madeira velha e de tinta seca.']], null); });
+}
+function interact() {
+  const [x, y] = Player.reach(), t = World.at(G.map, x, y); if (!t) return;
+  if (t.k) G.seen[t.k] = 1;
+  Dialogue.start(t.talk ? t.talk(G) : t.text, () => { if (t.after) t.after(G); objective(); if (G.rumor && !G.s2) { G.s2 = 1; Cut.play(Scenes.bosque); } else if (G.tk === 3 && !G.s3) { G.s3 = 1; Cut.play(Scenes.takeshi); } });
+}
+function checkDoor() {
+  const d = G.map.doors.find(d => Player.x >= d.x * 16 && Player.x < (d.x + d.w) * 16 && Player.y - 2 >= d.y * 16 && Player.y - 2 < (d.y + d.h) * 16);
+  if (d) G.fade = { a: 0, out: true, d };
+}
+
+const petals = Array.from({ length: 24 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 6 + Math.random() * 8, p: Math.random() * 6 }));
+const vg = g.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, W * .65);
+vg.addColorStop(0, 'rgba(40,30,60,0)'); vg.addColorStop(1, 'rgba(40,30,60,.35)');
+
+function render() {
+  const m = G.map; if (!m) return;
+  g.fillStyle = '#1d1b2e'; g.fillRect(0, 0, W, H);
+  const F = Cut.focus || Player, cx = Math.max(0, Math.min(m.w * 16 - W, Math.round(F.x - W / 2))), cy = Math.max(0, Math.min(m.h * 16 - H, Math.round(F.y - H / 2)));
+  Ambient.cam = [cx, cy]; g.save(); g.translate(-cx, -cy);
+  for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) g.drawImage(Art.tiles[m.g[j][i]], i * 16, j * 16);
+  for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) { const c = Art.tiles[m.g[j][i] + 'c']; if (c) g.drawImage(c, i * 16 + Ambient.sway(i, j), j * 16); }
+  const items = [];
+  m.objs.forEach(o => items.push([(o.y + 1) * 16, () => Art.obj(g, o.t, o.x * 16, o.y * 16)]));
+  World.npcs(m).forEach(n => items.push([n.y, () => Ambient.char(g, n, n.x - 8, n.y - 21, n.dir, 0, Art.pal[n.pal])]));
+  items.push([Player.y, () => Ambient.char(g, Player, Player.x - 8, Player.y - 21, Player.dir, Player.step, Art.pal.koharu)]);
+  items.sort((a, b) => a[0] - b[0]).forEach(it => it[1]());
+  Ambient.drawWorld(g); g.restore(); if (!m.indoor) Ambient.drawBirds(g);
+  if (!m.indoor) { g.fillStyle = '#f7c6d0'; petals.forEach(p => g.fillRect(p.x | 0, p.y | 0, 2, 1)); }
+  g.fillStyle = G.tint || m.tint; g.fillRect(0, 0, W, H); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  if (G.fade) { g.fillStyle = `rgba(29,27,46,${Math.min(1, G.fade.a)})`; g.fillRect(0, 0, W, H); }
+  Cut.draw(g);
+}
+
+let last = 0;
+function frame(t) {
+  const dt = Math.min(.05, (t - last) / 1000 || 0); last = t;
+  if (G.mode === 'play') {
+    Dialogue.update(dt);
+    const f = G.fade;
+    if (f) {
+      f.a += dt * 4 * (f.out ? 1 : -1);
+      if (f.out && f.a >= 1) { f.out = false; load(f.d.to, f.d.tx, f.d.ty); Sfx.blip(300); }
+      else if (!f.out && f.a <= 0) G.fade = null;
+    } else if (!Dialogue.active && !Cut.active) { Player.update(dt, G.map, keys); if (Player.moving) checkDoor(); }
+    Cut.update(dt); Ambient.update(dt); petals.forEach(p => { p.y += p.v * dt; p.x += Math.sin(p.p += dt) * 12 * dt + 8 * dt; if (p.y > H || p.x > W) { p.y = -2; p.x = Math.random() * W; } });
+  }
+  render(); requestAnimationFrame(frame);
+}
+
+const KEYMAP = { ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down', ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right' };
+const kname = e => KEYMAP[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+addEventListener('keydown', e => {
+  const k = kname(e); if (k) { keys[k] = 1; e.preventDefault(); }
+  if (e.repeat) return;
+  if (e.key === 'Escape') return togglePause();
+  if (G.mode !== 'play') return;
+  if (Cut.active && e.key.toLowerCase() === 'x') return Cut.skipAll();
+  if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') { e.preventDefault(); if (Dialogue.active) Dialogue.advance(); else if (!G.fade && !Cut.active) interact(); }
+});
+addEventListener('keyup', e => { const k = kname(e); if (k) keys[k] = 0; });
+addEventListener('blur', () => Object.keys(keys).forEach(k => keys[k] = 0));
+
+function togglePause() {
+  if (G.mode === 'play') { G.mode = 'pause'; $('pause').hidden = false; $('resume').focus(); }
+  else if (G.mode === 'pause') { G.mode = 'play'; $('pause').hidden = true; }
+}
+$('start').onclick = () => { $('title').hidden = true; loadScreen(1.6, () => { G.mode = 'play'; newGame(); }); };
+$('resume').onclick = togglePause;
+$('speed').onclick = () => { Dialogue.speed = Dialogue.speed === 40 ? 100 : 40; $('speed').textContent = 'Texto: ' + (Dialogue.speed === 40 ? 'normal' : 'rápido'); };
+$('restart').onclick = () => { $('pause').hidden = true; G.mode = 'title'; loadScreen(1.1, () => { G.mode = 'play'; newGame(); }); };
+
+function fit() { document.documentElement.style.setProperty('--s', Math.max(1, Math.min(Math.floor(innerWidth / W), Math.floor(innerHeight / H)))); }
+addEventListener('resize', fit); fit();
+load('casa', 9, 8); $('hud').textContent = '';
+loadScreen(2.2, () => {});
+requestAnimationFrame(frame);
+</script>
+</body></html>
