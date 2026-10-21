@@ -33,26 +33,31 @@ button:hover,button:focus-visible{background:#f2b7c4;outline:none}
 #bar i{display:block;height:100%;width:0;background:#f2b7c4;border-radius:calc(var(--s)*1px)}
 #tip{opacity:.7;font-size:calc(var(--s)*4.5px);max-width:calc(var(--s)*220px)}
 @keyframes pulse{50%{opacity:.35;transform:scale(.88)}}
-#face{position:absolute;left:calc(var(--s)*8px);top:calc(var(--s)*-16px);width:calc(var(--s)*40px);height:calc(var(--s)*40px);image-rendering:pixelated;border:calc(var(--s)*2px) solid #1d1b2e;box-shadow:calc(var(--s)*2px) calc(var(--s)*2px) 0 #5a3420;background:#fff}
+#face{position:absolute;left:calc(var(--s)*8px);top:calc(var(--s)*-20px);width:calc(var(--s)*48px);height:calc(var(--s)*48px);image-rendering:pixelated;border:calc(var(--s)*2px) solid #1d1b2e;box-shadow:calc(var(--s)*2px) calc(var(--s)*2px) 0 #5a3420;background:#fff}
 #face[hidden]{display:none}
-#dlg.has{padding-left:calc(var(--s)*56px)}
-#dlg.has #who{left:calc(var(--s)*56px)}
+#dlg.has{padding-left:calc(var(--s)*66px)}
+#dlg.has #who{left:calc(var(--s)*66px)}
 #face.tr{animation:shk .09s infinite}
 #face.bn{animation:bn .5s infinite}
 .shake{animation:shk .07s infinite}
 #stage.red::after{content:'';position:absolute;inset:0;background:rgba(170,20,40,.4);pointer-events:none}
 @keyframes shk{25%{transform:translate(calc(var(--s)*-1px),calc(var(--s)*1px))}75%{transform:translate(calc(var(--s)*1px),calc(var(--s)*-1px))}}
 @keyframes bn{50%{transform:translateY(calc(var(--s)*-1px))}}
+#lc{position:absolute;inset:0;z-index:-1}
+#loading{justify-content:flex-start;padding:calc(var(--s)*14px) 0 calc(var(--s)*10px)}
+#loading #bar{margin-top:auto}
+#loading h1,#loading b{text-shadow:0 calc(var(--s)*1px) 0 #5a3420}
+#loading #tip{opacity:.95;color:#fff4e0;text-shadow:0 calc(var(--s)*1px) 0 #5a3420}
 </style></head>
 <body><div id="stage">
 <canvas id="c" width="320" height="192"></canvas>
 <div id="hud"></div>
-<div id="dlg" hidden><canvas id="face" width="40" height="40" hidden></canvas><b id="who"></b><p id="txt"></p><i>▼</i></div>
+<div id="dlg" hidden><canvas id="face" width="48" height="48" hidden></canvas><b id="who"></b><p id="txt"></p><i>▼</i></div>
 <div id="card" class="panel" hidden></div><div id="skip" hidden>X: pular cena</div>
-<div id="title" class="panel"><h1>Kessai</h1><p class="sub">Uma vila rural do Japão, 1895</p>
+<div id="title" class="panel"><h1>Kessai</h1><p class="sub">Uma vila do interior do Japão, 1936</p>
 <p>Mover: WASD ou setas<br>Interagir: Espaço ou E<br>Menu: Esc</p><button id="start">Começar</button></div>
 <div id="pause" class="panel" hidden><h2>Pausa</h2><button id="resume">Continuar</button><button id="speed">Texto: normal</button><button id="restart">Reiniciar</button></div>
-<div id="loading" class="panel"><b>✿</b><h1>Kessai</h1><div id="bar"><i></i></div><p id="tip"></p></div>
+<div id="loading" class="panel"><canvas id="lc" width="320" height="192"></canvas><b>✿</b><h1>Kessai</h1><div id="bar"><i></i></div><p id="tip"></p></div>
 </div>
 <script>
 /* ===== sprites.js ===== */
@@ -75,6 +80,10 @@ const Art = (() => {
   paint('f', r => { grass(r); [[3, 4], [10, 9], [6, 12]].forEach(([x, y], i) => { r('#6f9a64', x, y + 1, 1, 3); r(i ? '#f7efe6' : '#f2b7c4', x - 1, y - 1, 3, 2); r('#f0d28a', x, y); }); });
   const tree = (ch, c1, c2) => { paint(ch, r => { grass(r); r('#7a5640', 6, 10, 4, 6); }); paint(ch + 'c', r => { r(c1, 1, 1, 14, 10); r(c1, 3, 0, 10, 12); r(c2, 4, 2, 5, 3); r(c2, 9, 6, 3, 2); }); };
   tree('T', '#6f9a64', '#8fba80'); tree('K', '#f2b7c4', '#fbd6dd'); // T = árvore, K = cerejeira
+  tree('Y', '#3f6b4a', '#5b8c62'); // Y = pinheiro do bosque
+  paint('B', r => { r('#a9835a', 0, 0, 16, 16); for (let y = 3; y < 16; y += 4) r('#8a6248', 0, y, 16); });
+  paint('g', r => { r('#6f8f64', 0, 0, 16, 16); speckle(r, ['#5d7d54', '#86a577', '#4f6b48'], 26); });
+  paint('m', r => { r('#8a7656', 0, 0, 16, 16); speckle(r, ['#76653f', '#a08a64'], 16); });
 
   // dir: 0 baixo, 1 cima, 2 esquerda, 3 direita | step: 0 parado, 1-4 ciclo de caminhada
   // t: tempo (respiração, piscar, balanço do cabelo) | sc: assustada (olhos arregalados, braços erguidos)
@@ -147,8 +156,26 @@ const Art = (() => {
       if (p.a) m(p.a, 9, 1 - hy, 2, 2);
     }
   }
+  function deer(g, x, y, dir, sick) {
+    const f = dir === 3, r = (c, a, b, w, h) => rect(g, c, x + (f ? 20 - a - w : a), y + b, w, h);
+    const bc = sick ? '#8b8f86' : '#b98a5e', dk = sick ? '#5f6358' : '#8a6248', wh = '#f6ecd8', an = '#e8d8bc';
+    r('rgba(30,24,48,.28)', 3, 17, 16, 2);
+    [5, 8, 14, 17].forEach(a => { r(dk, a, 13, 1, 5); r('#2a1a20', a, 18, 1, 1); });
+    r(bc, 4, 8, 15, 6); r(bc, 5, 7, 13, 1); r(an, 5, 13, 13, 1);
+    r(bc, 1, 3, 4, 6); r(bc, 0, 2, 4, 4); r('#2a1a20', 0, 5, 1, 1); r(sick ? '#e0302a' : '#2a1a20', 2, 3, 1, 1); r(bc, 3, 1, 2, 2); r(wh, 19, 8, 1, 2);
+    if (sick) { r('#8a2a2f', 9, 9, 3, 2); r('#5a1a22', 14, 11, 2, 2); r('#6f7a5a', 6, 8, 2, 1); }
+    else { r(wh, 7, 9, 1, 1); r(wh, 11, 10, 1, 1); r(wh, 15, 9, 1, 1); r('#9a9a92', 12, 8, 3, 2); }
+    r(an, 2, -1, 1, 3); r(an, 1, -2, 1, 1); r(an, 3, -2, 1, 1); r(an, 4, 0, 1, 1);
+  }
+  function bird(g, b) {
+    const x = Math.round(b.x), y = Math.round(b.y);
+    if (b.dead) { rect(g, '#6f6a80', x - 3, y - 2, 6, 3); rect(g, '#8d879c', x - 2, y - 3, 4, 1); rect(g, '#c9a050', x - 4, y, 1, 1); rect(g, '#c9a050', x + 3, y, 1, 1); rect(g, '#2a2438', x + 2, y - 2, 1, 1); }
+    else { const w = Math.sin(Date.now() / 50) > 0 ? -2 : 2; rect(g, '#6f6a80', x - 2, y, 4, 3); rect(g, '#8d879c', x - 5, y + w, 3, 1); rect(g, '#8d879c', x + 2, y + w, 3, 1); }
+  }
   function obj(g, t, x, y) {
     const r = (c, a, b, w, h) => rect(g, c, x + a, y + b, w, h);
+    if (t === 'log') { r('#6e4a34', 0, 5, 16, 9); r('#8a6248', 0, 5, 16, 3); r('#a07a5c', 1, 7, 2, 5); }
+    if (t === 'fita') { r('#7a5640', 6, 0, 4, 16); r('#c8383f', 7, 2, 2, 9); r('#e05a5f', 9, 6, 2, 5); }
     if (t === 'easel') { r('#8a6248', 3, 14, 2, 2); r('#8a6248', 11, 14, 2, 2); r('#8a6248', 7, 2, 2, 14); r('#fbf4e4', 3, 3, 10, 9); r('#e9b9c1', 3, 3, 10, 1); }
     if (t === 'chest') { r('#8a6248', 1, 5, 14, 10); r('#a07a5c', 1, 5, 14, 3); r('#d98fa0', 7, 5, 2, 10); r('#f0d28a', 7, 9, 2, 2); }
     if (t === 'table') { r('#a07a5c', 0, 5, 32, 9); r('#8a6248', 1, 14, 3, 2); r('#8a6248', 28, 14, 3, 2); r('#f4e8ce', 12, 3, 6, 3); r('#9bb592', 13, 3, 4, 1); }
@@ -161,89 +188,155 @@ const Art = (() => {
   const pal = {
     koharu: { h: '#232a5c', h2: '#3d4a94', s: '#f6dcc6', sd: '#dcb59f', sh: '#f2a6b0', e: '#4aa3e8', ey: '#1a1d44', t: '#f6f3fb', t2: '#b9b0d8', c: '#8f86b8', b: '#2b2f5e', b2: '#1d2048', f: '#241f3a', f2: '#4d4872', hl: 13 },
     hana: { h: '#7a5640', h2: '#9a7258', s: '#f6dcc6', sd: '#dcb59f', sh: '#f2a6b0', e: '#5a3a2a', ey: '#3a2a30', t: '#9bb592', t2: '#7fa078', c: '#7fa078', b: '#9bb592', b2: '#7fa078', o: '#f0b8a0', a: '#ffffff', f: '#8a6248', f2: '#8a6248', hl: 11, st: 1 },
-    genji: { h: '#b9b4bd', h2: '#dcd8e0', s: '#e8cdb2', sd: '#c9ab90', sh: '#e8b8a4', e: '#3a2a30', ey: '#3a2a30', t: '#6f7f95', t2: '#56657c', c: '#b9b4bd', b: '#6f7f95', b2: '#56657c', o: '#4b4458', bd: '#dcd8e0', f: '#4a3328', f2: '#4a3328', hl: 8, st: 1 }
+    genji: { h: '#b9b4bd', h2: '#dcd8e0', s: '#e8cdb2', sd: '#c9ab90', sh: '#e8b8a4', e: '#3a2a30', ey: '#3a2a30', t: '#6f7f95', t2: '#56657c', c: '#b9b4bd', b: '#6f7f95', b2: '#56657c', o: '#4b4458', bd: '#dcd8e0', f: '#4a3328', f2: '#4a3328', hl: 8, st: 1, old: 1 },
+    ren: { h: '#2f2420', h2: '#4a3a32', s: '#f2d2b8', sd: '#d4ad96', sh: '#ef9c9c', e: '#4a3020', ey: '#2a1a18', t: '#d98f5f', t2: '#b87347', c: '#b87347', b: '#4a5a7a', b2: '#35435f', f: '#4a3328', f2: '#4a3328', hl: 5 },
+    sumi: { h: '#c9c6cf', h2: '#e6e3ea', s: '#ecd2ba', sd: '#c9a98e', sh: '#e8b0a0', e: '#4a3a30', ey: '#3a2a30', t: '#8a6f9e', t2: '#6d5580', c: '#e6d8c2', b: '#8a6f9e', b2: '#6d5580', o: '#d98fa0', f: '#4a3328', f2: '#4a3328', hl: 9, st: 1, old: 1, bun: 1 }
   };
-  return { tiles, char, obj, pal };
+  return { tiles, char, obj, pal, deer, bird };
 })();
 
 /* ===== world.js ===== */
 // Mapas, colisão, portas, objetos e NPCs.
 const World = (() => {
-  const SOLID = '#RSTK~';
+  const SOLID = '#RSTKY~';
   const grid = (w, h, f, ops) => { const g = Array.from({ length: h }, () => Array(w).fill(f)); ops.forEach(([c, x, y, a = 1, b = 1]) => { for (let j = y; j < y + b; j++) for (let i = x; i < x + a; i++) g[j][i] = c; }); return g; };
-  const K = (t, e) => ['Koharu', t, e];
+  const K = (t, e) => ['Koharu', t, e], P = (x, y) => ({ x: x * 16 + 8, y: y * 16 + 14 });
+  const house = (x, y, w) => [['R', x, y, w, 2], ['#', x, y + 2, w]];
+  const fita = (x, y, id) => ({ t: 'fita', x, y, talk: G => G.fitas[id] ? [K('Já peguei a corda desta fita.', 'n')] : [K('Uma fita vermelha, com um pedaço de corda enrolado no tronco. Vou levar.', 'n')], after: G => { G.fitas[id] = 1; } });
+  const vilaNpcs = () => [
+    { ...P(19, 16), dir: 0, pal: 'hana', on: G => G.ch !== 4,
+      talk: G => G.ch === 3 && !G.w ? [['Hana', 'Koharu! Vamos até o rio hoje? O Ren já está me puxando pela manga.', 'h'], K('Vamos. Preciso respirar um pouco depois de pintar.', 'h')]
+        : G.met.hana ? [['Hana', 'Passe lá em casa qualquer dia. As flores brancas só crescem no nosso jardim!', 'h']]
+        : [['Hana', 'Ah! Você deve ser a Koharu. Minha mãe disse que alguém ia morar na casa velha.', 'o'], K('...Sim. Cheguei ontem.', 'n'), ['Hana', 'Eu sou a Hana. Minha família cultiva flores, lá no fim da rua.', 'h'], ['Hana', 'A vila é pequena, mas todo mundo vai querer te conhecer. Pode contar comigo, tá?', 'h'], K('Obrigada, Hana.', 'h')],
+      after: G => { if (G.ch === 3 && !G.w) Cut.play(Scenes.passeio, objective); else G.met.hana = 1; } },
+    { ...P(22, 18), dir: 2, pal: 'ren', on: G => G.ch !== 4,
+      talk: G => G.ch === 3 && !G.w ? [['Ren', 'A Hana já está te chamando! Anda logo, vai perder os sapos!', 'h']]
+        : G.met.ren ? [['Ren', 'Quando eu crescer, vou ser o melhor pescador de Kessai. Ou domador de sapos.', 'h']]
+        : [['Ren', 'Você é a moça nova! Eu sou o Ren e sei onde ficam os melhores sapos do rio.', 'h'], K('Sapos... obrigada pela dica, Ren.', 'h'), ['Ren', 'Dizem que eu sou barulhento. Eu acho que sou só animado!', 'h']],
+      after: G => { G.met.ren = 1; } },
+    { ...P(24, 9), dir: 2, pal: 'sumi', on: G => !(G.ch >= 9 && G.seen.e1),
+      talk: G => G.met.sumi ? [['Sumi', 'Papel de arroz, nanquim, pincéis... Quando precisar, é só passar aqui.', 'n']]
+        : [['Sumi', 'Hm. Você tem o mesmo nariz da Aiko. Sua mãe pintava aqui nesta vila, sabia?', 'o'], K('A senhora conheceu minha mãe?', 'o'), ['Sumi', 'Todos conheciam. Ela deixou Kessai numa noite de inverno e nunca disse o porquê.', 's'], ['Sumi', 'Leve estes pincéis. Guardei por anos para ela. Agora são seus.', 'n'], K('...Obrigada, dona Sumi.', 's')],
+      after: G => { G.met.sumi = 1; } },
+    { ...P(9, 13), dir: 0, pal: 'genji', on: G => !(G.ch >= 9 && G.seen.e2),
+      talk: G => G.met.genji ? [['Genji', 'O bosque se cala quando algo vai mal. Preste atenção no canto dos pássaros, moça.', 'n']]
+        : [['Genji', 'Então é você, a moça da casa velha. Tem o jeito da sua mãe de andar devagar.', 'n'], K('Todo mundo parece ter conhecido minha mãe...', 's'), ['Genji', 'A vila é pequena. Aqui, até as pedras têm memória.', 'n'], ['Genji', 'Meu avô dizia que no bosque vive um cervo muito velho, e que os pássaros se calam antes de coisas ruins.', 'n']],
+      after: G => { G.met.genji = 1; } },
+    { ...P(31, 11), dir: 0, pal: 'take0',
+      talk: G => G.ch >= 6 ? [['Takeshi', 'Foi só uma mordida... mas arde por dentro. E à noite eu escuto o riacho me chamando.', 's']]
+        : G.met.take ? [['Takeshi', 'Se for passear perto do rio, não pise nas minhas armadilhas.', 'n']]
+        : [['Takeshi', 'Hm. A forasteira.', 'n'], K('Koharu. Muito prazer.', 'n'), ['Takeshi', 'Eu caço no bosque. Se vir pegadas de cervo perto do riacho, me avise. Estão mais perto da vila do que deveriam.', 'n'], K('Por que "perto demais"?', 'o'), ['Takeshi', 'Esquece. Não é conversa para o primeiro dia.', 's']],
+      after: G => { G.met.take = 1; } }
+  ];
+  const bosqueNpcs = () => [
+    { ...P(24, 13), dir: 3, pal: 'hana', on: G => G.ch === 4,
+      talk: G => G.open ? [['Hana', 'Agora é só seguir em frente, devagar e sem fazer barulho.', 'n']]
+        : nf() >= 3 ? [['Hana', 'Você achou as três cordas! Ren, vem ajudar a puxar o tronco!', 'h'], ['Ren', 'Um, dois... TRÊS!', 'h'], ['', 'O tronco rolou para o lado, abrindo a trilha.']]
+        : [['Hana', 'Meu pai deixa uma corda em cada fita vermelha da trilha. Com três cordas, a gente puxa o tronco!', 'n'], ['Hana', 'Você tem ' + nf() + ' de 3 até agora.', 'n']],
+      after: G => { if (nf() >= 3) G.open = 1; } },
+    { ...P(22, 14), dir: 3, pal: 'ren', on: G => G.ch === 4,
+      talk: () => [['Ren', 'Aqui só tem borboletas azuis... e uns barulhos de galho que eu não gosto.', 'o']] }
+  ];
+  const N = t => ['', t], P1 = (x, y, k) => ({ t: 'page', x, y, k, on: G => G.ch === 8 && !G.seen[k], text: [K('Uma página rasgada de um caderno. A tinta está desbotada.', 'n')], after: G => { if (G.seen.p1 && G.seen.p2 && G.seen.p3) G.seen.pg = 1; } });
+  const stone = (x, y, k, t) => ({ t: 'stone', x, y, k, text: [K(t, 'n')], after: G => { if (G.seen.i1 && G.seen.i2 && G.seen.i3 && !G.seen.pz) { G.seen.pz = 1; Dialogue.start([N('Um estalo seco vem do santuário. A porta se abriu.')], null); } } });
+  const wf = (x, y) => ({ t: 'wf', x, y, on: G => G.fl < 3, talk: G => !G.seen.h6 ? [K('O jardim da Hana. Melhor pedir licença antes de mexer nas flores.', 'n')] : G.fl ? [K(G.fl > 1 ? 'Há rachaduras finas nas pétalas, e quase não resta cor.' : 'As pétalas estão perdendo a cor, bem devagar...', 'x')] : [K('Flores brancas, luminosas... Quero pintá-las em primeiro plano.', 'o')],
+    after: G => { if (!G.seen.h6) return; if (!G.fl) Draw.start('flores', () => { G.fl = 1; G.seen.wf1 = 1; Dialogue.start([K('Pronto. Nunca pintei algo tão delicado.', 'h')], adv); }); else if (G.fl > 1 && G.seen.esb) G.seen.wf2 = 1; } });
+  const gk = (x, k, t) => ({ t: 'scroll', x, y: 0, k, text: t, after: G => { if (G.seen.gk1 && G.seen.gk2 && G.seen.gk3 && G.seen.gk4) G.seen.gal = 1; } });
+  const VX = [wf(18, 9), wf(19, 10), wf(20, 9), { t: 'log', x: 0, y: 12, on: G => G.ch < 7, text: [K('Uma trilha pelo oeste. Ainda não tenho motivo para ir até lá.', 'n')] }, { t: 'log', x: 0, y: 13, on: G => G.ch < 7, text: [K('Uma cerca baixa fecha o caminho.', 'n')] },
+    { t: 'mound', x: 11, y: 4, k: 'tumulo', on: G => G.w, text: [K('Enterramos o pássaro debaixo da cerejeira. A Hana deixou uma flor.', 's'), ['Hana', 'Depois a gente vai explorar a trilha do bosque. Meu pai deixa cordas nas fitas vermelhas.', 'n'], K('Eu vou já. Podem ir na frente.', 'n')] }, P1(28, 10, 'p1')];
+  const OT = { t: 'oldtree', x: 16, y: 10, w: 2, on: G => G.tr < 3, talk: G => G.tr ? [K('A copa escurece, e as folhas caem sem nenhum vento.', 'x')] : [K('A árvore sagrada da vila. É enorme... Quero pintá-la inteira.', 'o')],
+    after: G => { if (G.ch !== 7) return; if (!G.tr) Draw.start('arvore', () => { G.tr = 1; G.seen.arv = 1; adv(); }); else if (G.tr > 1) G.seen.arv2 = 1; } };
+  const npcs = m => m.npcs.filter(n => !n.on || n.on(G));
+  const objs = m => m.objs.filter(o => !o.on || o.on(G));
   const maps = {
     casa: {
       w: 20, h: 12, indoor: true, tint: 'rgba(255,190,140,.12)',
       g: grid(20, 12, '=', [['#', 0, 1, 1, 11], ['#', 19, 1, 1, 11], ['#', 0, 11, 20], ['S', 0, 0, 20], ['D', 9, 11, 2]]),
-      doors: [{ x: 9, y: 11, w: 2, h: 1, to: 'vila', tx: 5, ty: 5 }],
+      doors: [{ x: 9, y: 11, w: 2, h: 1, to: 'vila', tx: 5, ty: 10 }],
       objs: [
-        { t: 'easel', x: 14, y: 2, k: 'easel', text: [K('O cavalete da mamãe. O papel continua em branco, e eu ainda não sei se tenho coragem de sujá-lo.')] },
-        { t: 'chest', x: 3, y: 2, k: 'bau', text: [K('O baú de pincéis da mamãe. Embaixo das tintas, uma pilha de cartas amarradas com barbante.'), K('Ainda não consigo abrir nenhuma delas.')] },
-        { t: 'scroll', x: 6, y: 0, k: 'quadro', text: [K('Uma ponte sobre um rio, pintada pela mamãe.'), K('Tem uma mancha escura no canto. Umidade, provavelmente.')] },
-        { t: 'table', x: 8, y: 5, w: 2, text: [K('Chá frio. Esqueci de beber outra vez.')] }
+        { t: 'easel', x: 14, y: 2, k: 'easel',
+          talk: G => G.ch === 2 ? [K('Hoje eu quero tentar. Uma paisagem, um pássaro... só um pedacinho do que vi.', 'n')] : G.ch === 9 ? [K(G.seen.e1 && !G.seen.v1 ? 'Primeiro preciso ver como está a vila.' : 'Eu preciso pintar. Só mais uma, e eu entendo tudo.', 's')] : G.ch === 12 ? [K(G.seen.ep0 ? 'Hoje quero pintar a vila como ela é.' : 'Antes, quero rever a Hana e o Ren na praça.', 'n')] : [K('O cavalete da mamãe. O papel continua em branco, e eu ainda não sei se tenho coragem de sujá-lo.', 's')],
+          after: G => { if (G.ch === 2) Draw.start('paisagem', () => Cut.play(Scenes.noite, objective)); else if (G.ch === 9 && (!G.seen.e1 || G.seen.v1 && !G.seen.e2)) Cut.play(Scenes.oculta, adv); else if (G.ch === 12 && G.seen.ep0) Draw.start('vila', () => { G.seen.ep1 = 1; adv(); }); } },
+        { t: 'chest', x: 3, y: 2, k: 'bau', talk: G => G.ch === 9 && G.seen.h9 ? [K('Estou exausta... Vou descansar um pouco, perto das coisas dela.', 's')] : [K('O baú de pincéis da mamãe. Embaixo das tintas, uma pilha de cartas amarradas com barbante.', 's'), K('Ainda não consigo abrir nenhuma delas.', 's')], after: G => { if (G.ch === 9 && G.seen.h9) G.seen.bau9 = 1; } },
+        { t: 'scroll', x: 6, y: 0, k: 'quadro', text: [K('Uma ponte sobre um rio, pintada pela mamãe.', 'n'), K('Tem uma mancha escura no canto. Umidade, provavelmente.', 'n')] },
+        { t: 'table', x: 8, y: 5, w: 2, text: [K('Chá frio. Esqueci de beber outra vez.', 'n')] },
+        { t: 'scroll', x: 11, y: 0, on: G => G.ch >= 6, talk: G => G.fl ? [K('Os esboços do pássaro, do cervo e das flores, lado a lado.', 'n'), K('Nos três, uma silhueta escura no canto. Eu não desenhei isso.', 'x'), K('Pássaro, cervo, flores. Todos sumiram.', 'x')] : [K('Meus esboços recentes. Ainda falta pintar as flores da Hana.', 'n')], after: G => { if (G.ch === 6 && G.fl) G.seen.esb = 1; } }
       ],
       npcs: []
     },
     vila: {
-      w: 30, h: 16, tint: 'rgba(255,215,225,.07)',
-      g: grid(30, 16, '.', [
-        ['T', 0, 0, 30], ['T', 0, 15, 30], ['T', 0, 1, 1, 14], ['T', 29, 1, 1, 14],
-        [',', 1, 7, 25, 2], [',', 5, 5, 1, 2], [',', 23, 5, 1, 2],
-        ['R', 3, 2, 5, 2], ['#', 3, 4, 5], ['D', 5, 4], ['R', 21, 2, 5, 2], ['#', 21, 4, 5],
-        ['T', 26, 5, 3, 5], ['~', 17, 10, 5, 3],
-        ['K', 11, 2], ['K', 13, 1], ['K', 1, 11], ['T', 9, 12], ['T', 24, 12], ['T', 3, 13],
-        ['f', 2, 10], ['f', 8, 10], ['f', 13, 11], ['f', 22, 6], ['f', 11, 5], ['f', 15, 4], ['f', 19, 5], ['f', 6, 12]
+      w: 44, h: 26, tint: 'rgba(255,215,225,.07)',
+      g: grid(44, 26, '.', [
+        ['T', 0, 0, 44], ['T', 0, 25, 44], ['T', 0, 1, 1, 24], ['T', 43, 1, 1, 24],
+        ['~', 36, 1, 3, 24], ['~', 6, 17, 5, 4],
+        [',', 1, 12, 42, 2], [',', 43, 12, 1, 2], [',', 0, 12, 1, 2], [',', 5, 10, 1, 2], [',', 15, 10, 1, 2], [',', 23, 8, 1, 4], [',', 32, 10, 1, 2], [',', 20, 14, 1, 2], [',', 16, 16, 9, 4],
+        ['B', 36, 12, 3, 2],
+        ...house(3, 7, 5), ['D', 5, 9], ...house(13, 7, 5), ...house(21, 5, 6), ...house(30, 7, 5),
+        ['K', 10, 3], ['K', 12, 2], ['K', 26, 2], ['K', 29, 3], ['K', 40, 3], ['K', 41, 7], ['K', 2, 18], ['K', 3, 22], ['K', 12, 23], ['K', 28, 21], ['K', 31, 23], ['K', 40, 21],
+        ['T', 2, 15], ['T', 40, 17], ['T', 27, 18], ['T', 14, 21], ['T', 34, 18],
+        ['f', 12, 6], ['f', 14, 6], ['f', 16, 6], ['f', 18, 6], ['f', 10, 10], ['f', 9, 15], ['f', 26, 10], ['f', 30, 15], ['f', 18, 21], ['f', 4, 14], ['f', 25, 17], ['f', 33, 14]
       ]),
-      doors: [{ x: 5, y: 4, w: 1, h: 1, to: 'casa', tx: 9, ty: 10 }],
+      doors: [{ x: 5, y: 9, w: 1, h: 1, to: 'casa', tx: 9, ty: 10 }, { x: 43, y: 12, w: 1, h: 2, to: 'bosque', tx: 1, ty: 12 }, { x: 0, y: 12, w: 1, h: 2, to: 'santuario', tx: 20, ty: 6, on: G => G.ch >= 7 }],
       objs: [
-        { t: 'noren', x: 23, y: 4, text: [K('Uma loja de papel e tintas. Hoje está fechada.')] },
-        { t: 'sign', x: 25, y: 7, text: [K('A trilha segue para dentro do bosque. Melhor não ir sozinha: não conheço o caminho.')] }
+        { t: 'noren', x: 15, y: 9, text: [K('A casa da Hana. Pela janela, vasos e mais vasos de flores.', 'h')] },
+        { t: 'noren', x: 23, y: 7, text: [K('A loja de papel e tintas da dona Sumi.', 'n')] },
+        { t: 'noren', x: 32, y: 9, text: [K('A casa do Takeshi. Há armadilhas e peles penduradas ao lado da porta.', 'n')] },
+        { t: 'sign', x: 40, y: 11, text: [K('Pela placa, a ponte leva à trilha do bosque.', 'n')] },
+        { t: 'log', x: 42, y: 12, on: G => G.ch < 4, text: [K('A trilha do bosque. Melhor não ir sozinha... ainda não conheço o caminho.', 's')] },
+        { t: 'log', x: 42, y: 13, on: G => G.ch < 4, text: [K('Uma cerca baixa fecha a trilha por enquanto.', 'n')] }, ...VX
       ],
-      npcs: [{
-        x: 13 * 16 + 8, y: 6 * 16 + 14, dir: 0, pal: 'hana',
-        talk: G => G.talked
-          ? [['Hana', 'Passe lá em casa qualquer dia. Eu mostro as flores brancas. Elas só crescem no nosso jardim!']]
-          : [['Hana', 'Ah! Você deve ser a Koharu. Minha mãe disse que alguém ia morar na casa velha.'], K('...Sim. Cheguei ontem.'),
-            ['Hana', 'Eu sou a Hana. Minha família cultiva flores, lá no fim da rua.'],
-            ['Hana', 'A vila é pequena, mas todo mundo vai querer te conhecer. Pode contar comigo, tá?'], K('Obrigada, Hana.')],
-        after: G => { G.talked = 1; }
-      }, {
-        x: 20 * 16 + 8, y: 6 * 16 + 14, dir: 2, pal: 'genji', on: G => G.talked,
-        talk: G => G.rumor ? [['Genji', 'Cuidado com o bosque, moça.']] : [
-          ['Genji', 'Você é a moça da casa velha, não é? Já ficou sabendo do que houve com o Takeshi?'],
-          ['Genji', 'Foi mordido por um cervo, perto do riacho. Dizem que o bicho parecia um morto andando, com a carne meio podre caindo do corpo.'],
-          ['Genji', 'Os homens saíram para caçá-lo. Reviraram o bosque por três noites.'],
-          ['Genji', 'Nunca acharam nem rastro. O cervo nunca mais foi visto.'],
-          K('Nem rastro... Como ele pode ter sumido assim?'),
-          ['Genji', 'Quem sabe? Só não ande sozinha por lá.']],
-        after: G => { G.rumor = 1; }
-      }, { // Takeshi: três estágios, cada vez mais tomado pelo mal
-        x: 8 * 16 + 8, y: 9 * 16 + 14, dir: 0, get pal() { return 'take' + Math.min(G.tk, 2); }, on: G => G.rumor && !G.gone,
-        talk: G => [
-          [['Takeshi', 'Ah... a moça nova. Desculpe, estou meio tonto. A febre não passa há três dias.', 's'], K('Esse curativo no seu braço... foi o cervo?', 's'),
-            ['Takeshi', 'Foi só uma mordida. Mas arde como se o osso apodrecesse por dentro.', 's'], ['Takeshi', 'À noite eu ouço o riacho me chamando. É bobagem, não é?', 'n'], K('...Descanse, Takeshi. Por favor.', 's')],
-          [['Takeshi', 'Você de novo. Por que todo mundo me olha desse jeito?!', 'a'], K('Eu só queria saber se você melhorou...', 'x'),
-            ['Takeshi', 'Melhorar? Eu tenho fome, moça. Uma fome que comida nenhuma resolve.', 'a'], ['Takeshi', 'Aquele maldito cervo... os dentes dele ainda estão em mim.', 'a'],
-            ['Takeshi', 'Sai daqui. Antes que eu faça algo de que me arrependa.', 'a']],
-          [['Takeshi', '...Ela me chama. Todas as noites, no riacho.', 'd']]
-        ][G.tk],
-        after: G => { G.tk++; }
-      }]
+      npcs: vilaNpcs()
+    },
+    bosque: {
+      w: 36, h: 24, tint: 'rgba(50,80,110,.2)',
+      g: grid(36, 24, 'Y', [['m', 0, 11, 10, 2], ['m', 9, 6, 2, 7], ['m', 9, 6, 10, 2], ['m', 17, 6, 2, 9], ['m', 17, 13, 12, 2], ['g', 28, 9, 7, 10], ['~', 30, 10, 4, 2], ['f', 29, 15], ['f', 33, 13], ['f', 31, 17], ['f', 29, 12]]),
+      doors: [{ x: 0, y: 11, w: 1, h: 2, to: 'vila', tx: 41, ty: 12 }],
+      objs: [fita(5, 10, 'a'), fita(13, 5, 'b'), fita(19, 10, 'c'),
+        { t: 'log', x: 27, y: 13, on: G => !G.open, text: [K('Um tronco caído fecha a trilha. É pesado demais para mim.', 's')] },
+        { t: 'log', x: 27, y: 14, on: G => !G.open, text: [K('Parece que o tronco caiu há pouco tempo...', 'x')] }, P1(21, 14, 'p3')],
+      npcs: bosqueNpcs()
+    },
+    santuario: {
+      w: 22, h: 14, tint: 'rgba(120,140,190,.12)',
+      g: grid(22, 14, '.', [['T', 0, 0, 22], ['T', 0, 13, 22], ['T', 0, 1, 1, 12], ['T', 21, 1, 1, 12], [',', 1, 6, 21, 2], [',', 10, 4, 2, 2], ...house(8, 1, 6), ['D', 11, 3], ['K', 3, 2], ['K', 17, 2], ['K', 3, 12], ['f', 6, 9], ['f', 14, 5], ['f', 18, 8]]),
+      doors: [{ x: 21, y: 6, w: 1, h: 2, to: 'vila', tx: 1, ty: 12 }, { x: 11, y: 3, w: 1, h: 1, to: 'oculto', tx: 5, ty: 7, on: G => G.seen.pz }],
+      objs: [OT, stone(4, 4, 'i1', 'Uma pedra gasta: "O que se pinta, permanece."'), stone(18, 4, 'i2', '"O que permanece, pesa."'), stone(4, 10, 'i3', '"E o que pesa, quer ser solto."'), P1(13, 10, 'p2'),
+        { t: 'noren', x: 11, y: 3, on: G => !G.seen.pz, text: [K('A porta está fechada por dentro. Há inscrições nas pedras do pátio.', 'n')] }],
+      npcs: []
+    },
+    oculto: {
+      w: 12, h: 9, indoor: true, tint: 'rgba(40,30,80,.25)',
+      g: grid(12, 9, '=', [['#', 0, 1, 1, 8], ['#', 11, 1, 1, 8], ['#', 0, 8, 12], ['S', 0, 0, 12], ['D', 5, 8, 2], ['D', 9, 1]]),
+      doors: [{ x: 5, y: 8, w: 2, h: 1, to: 'santuario', tx: 11, ty: 4 }, { x: 9, y: 1, w: 1, h: 1, to: 'galeria', tx: 8, ty: 8, on: G => G.ch >= 10 }],
+      objs: [{ t: 'table', x: 4, y: 4, w: 2, k: 'reg', text: [N('Registros do santuário: uma artista viveu na vila décadas atrás.'), N('Inscrições, pincéis antigos e um nome que foi riscado.'), K('Ela também pintava a vila inteira...', 'o')] },
+        { t: 'chest', x: 9, y: 1, on: G => G.ch < 10, text: [K('Uma estante pesada demais para mim. Vem um ar frio de trás dela.', 'o')] }],
+      npcs: []
+    },
+    galeria: {
+      w: 18, h: 10, indoor: true, tint: 'rgba(60,30,90,.25)',
+      g: grid(18, 10, '=', [['#', 0, 1, 1, 9], ['#', 17, 1, 1, 9], ['#', 0, 9, 18], ['S', 0, 0, 18], ['D', 8, 9, 2]]),
+      doors: [{ x: 8, y: 9, w: 2, h: 1, to: 'oculto', tx: 9, ty: 2 }],
+      objs: [gk(2, 'gk1', [N('Um pássaro e um cervo, lado a lado. No canto de cada tela, a mesma sombra.'), K('A tinta parece fresca, mas a moldura é antiga.', 'x')]),
+        gk(5, 'gk2', [N('As flores brancas, com as pétalas rachadas e escuras. Como as vi sumir.'), N('Uma anotação no pé da moldura: "3ª imagem."')]),
+        gk(8, 'gk3', [N('A árvore do santuário. O tronco está lascado como casca de ovo.'), K('Há números nas molduras. Seguem uma ordem.', 'o')]),
+        gk(11, 'gk4', [N('Retratos da dona Sumi, do Genji e de outros moradores. Nenhum tem sombra.'), K('Eu nunca vi estes quadros...', 'x')]),
+        { t: 'table', x: 6, y: 5, w: 2, k: 'cad', text: [N('O caderno da gueixa: ela acreditava poder falar com os mortos por uma sequência de imagens.'), N('Começou pelos vivos: animais, flores, árvores. Cada desaparecimento abriria um caminho entre os dois lados.'), N('Ela confundiu preservar a memória com impedir a perda. Na margem, a letra da Sayuri: instruções para a Koharu.'), K('A mamãe sabia de tudo isso.', 's')] },
+        { t: 'easel', x: 14, y: 3, k: 'gs', talk: G => G.ch === 11 ? [K('Chegou a hora.', 's')] : [N('Num canto separado, o retrato inacabado de Sayuri.'), K('Mamãe... falta só um pedaço.', 's')], after: G => { if (G.ch === 11) G.seen.ult = 1; } }],
+      npcs: []
     }
   };
-  const npcs = m => m.npcs.filter(n => !n.on || n.on(G));
+  const reset = () => { maps.vila.npcs = vilaNpcs(); maps.bosque.npcs = bosqueNpcs(); };
   function hit(m, l, t, r, b) {
     if (l < 0 || t < 0 || r >= m.w * 16 || b >= m.h * 16) return true;
     for (let j = Math.floor(t / 16); j <= Math.floor(b / 16); j++) for (let i = Math.floor(l / 16); i <= Math.floor(r / 16); i++) if (SOLID.includes(m.g[j][i])) return true;
     const ov = (x, y, w, h) => l < x + w && r >= x && t < y + h && b >= y;
-    return m.objs.some(o => ov(o.x * 16, o.y * 16, (o.w || 1) * 16, 16)) || npcs(m).some(n => ov(n.x - 5, n.y - 5, 10, 5));
+    return objs(m).some(o => ov(o.x * 16, o.y * 16, (o.w || 1) * 16, 16)) || npcs(m).some(n => ov(n.x - 5, n.y - 5, 10, 5));
   }
   function at(m, px, py) {
     return npcs(m).find(n => px >= n.x - 8 && px < n.x + 8 && py >= n.y - 20 && py < n.y + 2) ||
-      m.objs.find(o => px >= o.x * 16 && px < (o.x + (o.w || 1)) * 16 && py >= o.y * 16 && py < o.y * 16 + 16);
+      objs(m).find(o => px >= o.x * 16 && px < (o.x + (o.w || 1)) * 16 && py >= o.y * 16 && py < o.y * 16 + 16);
   }
-  return { maps, hit, at, npcs };
+  return { maps, hit, at, npcs, objs, reset };
 })();
 
 /* ===== player.js ===== */
@@ -296,7 +389,7 @@ const Ambient = {
   update(dt) {
     this.t += dt;
     [Player, ...World.npcs(G.map)].forEach(e => { if (e.scare > 0) e.scare -= dt; });
-    if (!G.map.indoor && (this.nb -= dt) < 0) {
+    if (!G.map.indoor && (G.ch < 4 || G.ch >= 12) && (this.nb -= dt) < 0) {
       this.nb = 6 + Math.random() * 10; const r = Math.random() < .5, n = 1 + (Math.random() < .5);
       for (let k = 0; k < n; k++) this.birds.push({ x: (r ? -6 : 326) + k * (r ? -12 : 12), y: 8 + Math.random() * 60, v: (r ? 1 : -1) * (14 + Math.random() * 8), p: Math.random() * 6 });
     }
@@ -310,10 +403,10 @@ const Ambient = {
       v.age += dt;
       if (Math.hypot(Player.x - v.x, Player.y - v.y) < 30) v.max = Math.min(v.max, v.age + .4);
       if (v.age >= v.max) this.v = null;
-    } else if ((this.next -= dt) < 0) this.spawn();
+    } else if (G.ch >= 4 && G.ch < 12 && (this.next -= dt) < 0) this.spawn();
   },
   spawn() {
-    this.next = 35 + Math.random() * 35;
+    this.next = (G.ch > 8 ? 14 : 35) + Math.random() * 25;
     const [cx, cy] = this.cam;
     for (let n = 0; n < 15; n++) {
       const x = cx + 12 + Math.random() * 296, y = cy + 24 + Math.random() * 156;
@@ -348,56 +441,65 @@ const Ambient = {
 };
 
 /* ===== faces.js ===== */
-// Retratos estilo Omori: quadradinho com rosto detalhado, emoção e boca animada enquanto fala.
+// Retratos 48x48 estilo Omori: rosto oval sombreado, olhos com brilho, sobrancelhas e boca animada ao falar.
 // Emoções: n neutro, h feliz, s triste, a raiva, x medo, o surpresa, d possuído. Use ['Nome','texto','emoção'].
 Object.assign(Art.pal, (() => {
   const t = (inf, s, e, ey) => ({ h: '#3a2a22', h2: '#5a4236', s, sd: '#cdb39c', sh: '#e8b8a4', e, ey, t: '#6f8a7a', t2: '#4f6a5c', c: '#4f6a5c', b: '#4a4a5e', b2: '#35354a', f: '#4a3328', f2: '#4a3328', hl: 6, inf });
-  return { take0: t(1, '#e2cdb6', '#5a3a2a', '#3a2a30'), take1: t(2, '#cfc2b2', '#9a3b2b', '#2a1a20'), take2: t(3, '#b7b3a6', '#e0302a', '#1a0a10') };
+  return { take0: t(0, '#e2cdb6', '#5a3a2a', '#3a2a30'), take1: t(1, '#cfc2b2', '#9a3b2b', '#2a1a20') };
 })());
 const Face = {
   cv: document.getElementById('face'), who: '', emo: 'n', t: 0,
-  pal(w) { return { Koharu: 'koharu', Hana: 'hana', Genji: 'genji', Takeshi: 'take' + Math.min(G.tk, 2) }[w]; },
-  guess(w, t) { // emoção padrão quando a fala não indica nenhuma
+  pal(w) { return { Sayuri: 'sayuri', Koharu: 'koharu', Hana: 'hana', Ren: 'ren', Sumi: 'sumi', Genji: 'genji', Takeshi: 'take' + (G.ch >= 6 ? 1 : 0) }[w]; },
+  guess(w, t) {
     if (/^\.\.\./.test(t) || /Ainda não|Esqueci|Cuidado|podre|sozinha|rastro/.test(t)) return 's';
-    return /[!?]/.test(t) ? (w === 'Hana' ? 'h' : 'o') : (w === 'Hana' ? 'h' : 'n');
+    return /[!?]/.test(t) ? (['Hana', 'Ren'].includes(w) ? 'h' : 'o') : (w === 'Hana' ? 'h' : 'n');
   },
   set(w, t, e) { this.who = w; this.emo = e || this.guess(w, t); this.cv.hidden = !this.pal(w); this.cv.className = 'axd'.includes(this.emo) ? 'tr' : this.emo === 'h' ? 'bn' : ''; },
   draw(dt, talk) {
     const p = Art.pal[this.pal(this.who)]; if (!p) return;
-    const t = this.t += dt, e = this.emo, g = this.cv.getContext('2d'), inf = p.inf || 0, dark = e === 'd', big = e === 'x' || e === 'o';
+    const t = this.t += dt, e = this.emo, g = this.cv.getContext('2d'), inf = p.inf || 0, dark = e === 'd', big = e === 'x' || e === 'o', lo = p.hl > 9;
     const r = (c, x, y, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-    const blink = !dark && t % 3.7 > 3.55, open = talk && Math.sin(t * 16) > 0, mo = '#c0586b';
-    r({ h: '#ffe9b8', s: '#d5deee', a: '#f3b1a8', x: '#ddd5ee', d: '#2b1523' }[e] || '#fdf6e3', 0, 0, 40, 40);
-    r(p.h, 7, 5, 26, p.hl > 9 ? 33 : 17);                                   // cabelo de trás
-    r(p.t, 5, 33, 30, 7); r(p.c, 15, 33, 10, 2); r(p.s, 17, 29, 6, 5); r(p.sd, 17, 31, 6, 2); // corpo e pescoço
-    r(p.s, 11, 9, 18, 20); r(p.s, 10, 12, 20, 13); r(p.sd, 12, 27, 16, 2);   // rosto
-    if (p.bd) r(p.bd, 12, 24, 16, 6);                                        // barba
-    if (!dark && !big && inf < 2) { r(p.sh, 11, 22, 3, 2); r(p.sh, 26, 22, 3, 2); }
-    [13, 22].forEach((x, i) => {
-      const [yo, yi] = { h: [12, 12], s: [14, 12], a: [12, 15], x: [11, 11], o: [11, 11] }[e] || [13, 13];
-      for (let k = 0; k < 5; k++) r(p.h, x + k, Math.round(yo + (yi - yo) * Math.abs(k - (i ? 4 : 0)) / 4), 1, 2); // sobrancelha
-      if (dark) { r('#0d0610', x, 16, 5, 5); r('#ff2a2a', x + 2, 18, 2, 2); }
-      else if (e === 'h' && !blink) { r(p.ey, x, 19); r(p.ey, x + 1, 18, 3); r(p.ey, x + 4, 19); }
-      else if (blink) r(p.ey, x, 18, 5, 1);
+    const blink = !dark && t % 3.7 > 3.55, open = talk && Math.sin(t * 16) > 0, mo = '#b8505f';
+    r({ h: '#ffe9b8', s: '#d5deee', a: '#f3b1a8', x: '#ddd5ee', d: '#2b1523' }[e] || '#fdf6e3', 0, 0, 48, 48);
+    r('rgba(90,52,32,.1)', 0, 0, 48, 3); r('rgba(90,52,32,.1)', 0, 45, 48, 3);
+    r(p.h, lo ? 8 : 10, 8, lo ? 32 : 28, lo ? 40 : 20);                              // cabelo de trás
+    r(p.t, 5, 41, 38, 7); r(p.t2, 5, 41, 38, 1); r(p.c, 18, 41, 12, 2);               // ombros e gola
+    r(p.s, 20, 34, 8, 8); r(p.sd, 20, 37, 8, 3);                                       // pescoço e sombra
+    for (let y = 10; y <= 38; y++) { const k = (y - 24) / 14.5, hw = Math.round(11.5 * Math.sqrt(Math.max(0, 1 - k * k))) + 1; r(p.s, 24 - hw, y, hw * 2, 1); if (y > 18) r(p.sd, 24 + hw - 2, y, 2, 1); } // rosto oval
+    r(p.s, 12, 22, 2, 5); r(p.s, 34, 22, 2, 5); r(p.sd, 13, 23, 1, 3);                 // orelhas
+    if (p.bd) { r(p.bd, 14, 30, 20, 8); r(p.bd, 16, 28, 16, 2); }
+    if (p.old) { r(p.sd, 15, 27, 3, 1); r(p.sd, 30, 27, 3, 1); r(p.sd, 18, 13, 12, 1); } // rugas
+    r(p.sd, 24, 26, 1, 3); r(p.sd, 23, 29, 3, 1);                                      // nariz
+    if (!dark && !big && inf < 2) { r(p.sh, 14, 28, 4, 2); r(p.sh, 30, 28, 4, 2); }    // bochechas
+    [15, 28].forEach((x, i) => {
+      const [yo, yi] = { h: [16, 16], s: [18, 15], a: [16, 19], x: [15, 15], o: [14, 14] }[e] || [17, 17];
+      for (let k = 0; k < 7; k++) r(p.h, x - 1 + k, Math.round(yo + (yi - yo) * Math.abs(k - (i ? 6 : 0)) / 6), 1, 2); // sobrancelha
+      if (dark) { r('#0d0610', x, 20, 6, 5); r('#ff2a2a', x + 2, 22, 2, 2); }
+      else if (e === 'h' && !blink) { r(p.ey, x, 23); r(p.ey, x + 1, 22, 4); r(p.ey, x + 5, 23); }
+      else if (blink) r(p.ey, x, 22, 6, 1);
       else {
-        const y = big ? 15 : 16, hh = big ? 6 : 5;
-        r('#fff', x, y, 5, hh); r(p.e, x + 1, y + 1, 3, hh - 1); r(p.ey, x + 2, y + 2, big ? 1 : 2, big ? 1 : 2); r('#fff', x + 1, y + 1);
-        r(p.ey, x, y - 1, 5, 1); if (e === 's') { r(p.s, x, y, 5, 1); r('#8fd0ff', x + (i ? 4 : 0), y + hh, 1, 2 + ((t * 3) | 0) % 2); }
+        const y = big ? 19 : 20, hh = big ? 6 : 5;
+        r('#fff', x, y, 6, hh); r(p.e, x + 1, y + 1, 4, hh - 1); r(p.ey, x + 2, y + 2, 2, hh - 3); r('#fff', x + 1, y + 1); r('#e3f4ff', x + 4, y + 3);
+        r(p.ey, x, y - 1, 6, 1); r(p.sd, x, y + hh, 6, 1);
+        if (e === 's') { r(p.s, x, y, 6, 1); r('#8fd0ff', x + (i ? 5 : -1), y + hh, 1, 2 + ((t * 3) | 0) % 2); }
+        if (e === 'a') r(p.s, x + (i ? 0 : 3), y, 3, 1);
       }
-      if (inf) { r('rgba(80,40,90,.45)', x, 21, 5, 1); if (inf > 1) r('#7a4a8a', x + (i ? 5 : -2), 12, 1, 8); if (inf > 2) r('#7a4a8a', x + (i ? 1 : 2), 21, 1, 5); }
+      if (inf) r('rgba(80,40,90,.45)', x, 25, 6, 1);
     });
-    if (inf > 2) { r('#6f7a5a', 23, 24, 4, 3); r('#4a2a5a', 12, 10, 2, 5); }  // pele apodrecendo
-    if (e === 'x') r('#8fd0ff', 31, 12, 2, 3);                                // gota de suor
-    if (dark) { r('#0d0610', 15, 23, 10, 4); for (let k = 15; k < 25; k += 2) r('#e8e0d0', k, 23, 1, 2); }
-    else if (open) { r('#6a2a3a', 17, 24, 6, 3); r(mo, 18, 26, 4, 1); }
-    else if (e === 'a') { r('#2a1a20', 16, 24, 8, 2); r('#fff', 17, 24, 6, 1); }
-    else if (big) { r('#6a2a3a', 18, 24, 4, 3); }
-    else if (e === 'h') { r(mo, 16, 23); r(mo, 17, 24, 6); r(mo, 23, 23); r('#fff', 18, 24, 4, 1); }
-    else if (e === 's') { r(mo, 18, 24, 4); r(mo, 17, 25); r(mo, 22, 25); }
-    else r(mo, 18, 25, 4);
-    r(p.h, 9, 5, 22, 6); r(p.h, 10, 9, 20, 2); r(p.h, 9, 9, 3, 10); r(p.h, 28, 9, 3, 10); r(p.h2, 12, 7, 6, 1); // franja
-    if (p.hl > 9) { r(p.h, 7, 9, 4, 28); r(p.h, 29, 9, 4, 28); }
-    if (p.a) r(p.a, 27, 4, 5, 4);
+    if (e === 'x') r('#8fd0ff', 37, 15, 2, 4);
+    if (dark) { r('#0d0610', 19, 31, 10, 4); for (let k = 19; k < 29; k += 2) r('#e8e0d0', k, 31, 1, 2); }
+    else if (open) { r('#6a2a3a', 21, 31, 6, 3); r(mo, 22, 33, 4, 1); }
+    else if (e === 'a') { r('#2a1a20', 20, 32, 8, 2); r('#fff', 21, 32, 6, 1); }
+    else if (big) r('#6a2a3a', 22, 31, 4, 3);
+    else if (e === 'h') { r(mo, 19, 31); r(mo, 20, 32, 8); r(mo, 28, 31); r('#fff', 21, 32, 6, 1); }
+    else if (e === 's') { r(mo, 21, 32, 6); r(mo, 20, 33); r(mo, 27, 33); }
+    else r(mo, 21, 32, 6);
+    r(p.h, 10, 7, 28, 7); r(p.h, 9, 12, 4, 12); r(p.h, 35, 12, 4, 12);                  // franja e laterais
+    [14, 18, 22, 26, 30].forEach((x, k) => r(p.h, x, 14, 3, 1 + k % 2 * 2));
+    r(p.h2, 14, 9, 8, 1); r(p.h2, 27, 10, 6, 1); r(p.h2, 12, 12, 2, 3);
+    if (lo) { r(p.h, 8, 14, 5, 30); r(p.h, 35, 14, 5, 30); }
+    if (p.bun) { r(p.h, 19, 2, 10, 6); r(p.h2, 21, 3, 4, 1); }
+    if (p.a) r(p.a, 32, 8, 6, 4);
   }
 };
 
@@ -438,51 +540,132 @@ const Cut = {
 };
 const kh = (t, e) => ['Koharu', t, e], nar = t => ['', t];
 const Scenes = {
-  async intro() { // chegada à vila, no fim da tarde
-    Cut.a = 1; Player.scare = 0; G.tint = 'rgba(255,140,80,.16)'; load('vila', 1, 7); Player.dir = 3; Cut.focus = { x: 208, y: 56 };
-    await Cut.card(['Interior do Japão, primavera de 1895.', 'Vila de Kessai.']);
+  async intro() { // capítulo 1: chegada à vila
+    Cut.a = 1; Player.scare = 0; G.tint = 'rgba(255,140,80,.16)'; load('vila', 1, 12); Player.dir = 3; Cut.focus = { x: 88, y: 150 };
+    await Cut.card(['Interior do Japão, primavera de 1936.', 'Vila de Kessai.']);
     await Cut.fade(0, 1.6);
-    await Cut.say([nar('Kessai. Era assim que mamãe chamava a vila onde nasceu.'), nar('Ela deixou este lugar muito antes de eu nascer, e nunca me contou o motivo.')]);
+    await Cut.say([nar('Kessai. Era assim que mamãe chamava a vila onde nasceu.'), nar('Ela partiu daqui muito antes de eu nascer, e nunca me contou o motivo.')]);
     await Cut.pan(Player.x, Player.y, 2.2);
-    await Cut.say([nar('Agora mamãe se foi. Ficaram uma casa velha, um cavalete e perguntas sem resposta.'), kh('Então é aqui...')]);
+    await Cut.say([nar('Agora mamãe se foi. Ficaram uma casa velha, um cavalete e perguntas sem resposta.'), kh('Então é aqui...', 's')]);
     Cut.focus = null;
-    await Cut.walk(Player, 88, 126); await Cut.walk(Player, 88, 74);
-    await Cut.say([kh('A casa da mamãe. Ela dizia que cada quadro guardava um segredo.'), kh('Vamos ver o que ela deixou para mim.')]);
+    await Cut.walk(Player, 88, 206); await Cut.walk(Player, 88, 168);
+    await Cut.say([kh('A casa da mamãe. Ela dizia que cada quadro guardava um segredo.', 'n'), kh('Vamos ver o que ela deixou para mim.', 'n')]);
     await Cut.fade(1, 1.2);
-    await Cut.card(['Na manhã seguinte...'], 1);
     load('casa', 9, 8); Player.dir = 0; G.tint = null;
     await Cut.fade(0, 1.6);
   },
-  async takeshi() { // o mal toma conta de vez: Takeshi ataca e foge para o bosque
-    const T = World.maps.vila.npcs[2], m = G.map, cl = (v, a, b) => Math.max(a, Math.min(b, v));
-    const dx = Math.sign(Player.x - T.x), dy = Math.sign(Player.y - T.y) || 0;
-    await Cut.wait(.5); Cut.fx('shake', 600); Sfx.whisper(); Player.scare = 2;
-    await Cut.say([['Takeshi', 'Ele está dentro de mim... e está com fome.', 'd']]);
-    await Cut.walk(T, T.x + dx * 6, T.y + dy * 6, 140); Cut.fx('red', 450); Cut.fx('shake', 450); Sfx.blip(80); Sfx.blip(60);
-    await Cut.walk(Player, cl(Player.x + dx * 34, 16, m.w * 16 - 16), cl(Player.y + dy * 34, 24, m.h * 16 - 8), 220); Player.dir = dx > 0 ? 2 : dx < 0 ? 3 : dy > 0 ? 1 : 0;
-    await Cut.say([kh('Takeshi...!', 'x'), ['Takeshi', 'Sai... SAI DA MINHA FRENTE!', 'a'], ['Takeshi', 'Corre, moça... antes que eu... AAARGH!', 'a']]);
-    Cut.fx('shake', 500); await Cut.walk(T, 24 * 16 + 8, 7 * 16 + 14, 100);
-    G.gone = 1; await Cut.wait(.6);
-    await Cut.say([kh('Aqueles olhos... não eram os dele.', 'x'), kh('O que quer que esteja no bosque, ele já está levando a vila.', 's')]);
-    objective();
+  async noite() { // depois do desenho da paisagem
+    await Cut.say([kh('Um morro, um pouco de céu... e um pássaro voando.', 'h'), kh('Faz tanto tempo que eu não desenhava assim.', 'h'), nar('Por um instante, a casa não pareceu tão vazia.')]);
+    G.ch = 3;
+    await Cut.say([kh('A luz da tarde já está dourada. A Hana comentou algo sobre ir ao rio... acho que vou procurá-la na praça.', 'n')]);
   },
-  async bosque() { // depois do boato do Genji: um vulto perto da trilha
-    await Cut.wait(.5); await Cut.pan(25 * 16, 7 * 16, 1.6);
-    Sfx.whisper(); const v = Ambient.v = { x: 408, y: 142, age: 0, max: 3 };
-    for (const a of [.3, .6, .9]) { v.age = a; await Cut.wait(.3); }
-    Player.dir = 3; Player.scare = 1.2; World.npcs(G.map).forEach(n => n.scare = 1);
-    await Cut.wait(1.4);
-    for (const a of [2.4, 2.7, 3]) { v.age = a; await Cut.wait(.25); }
-    Ambient.v = null;
+  async passeio() { // o pássaro que cai morto
+    const [H, R] = World.maps.vila.npcs;
+    await Cut.say([['Ren', 'Eu trouxe uma linha de pescar! A Hana trouxe os bolinhos de arroz!', 'h'], ['Hana', 'E ele já comeu metade. Vamos antes que sobre só o papel.', 'h']]);
+    await Promise.all([Cut.walk(Player, 34 * 16, 12 * 16 + 14, 46), Cut.walk(H, 33 * 16, 13 * 16 + 14, 46), Cut.walk(R, 35 * 16 - 4, 13 * 16 + 14, 52)]);
+    Player.dir = H.dir = R.dir = 3;
+    await Cut.say([['Ren', 'Olha o rio! Dá pra ver os peixes daqui!', 'h'], ['Hana', 'E então, Koharu? O que achou de Kessai até agora?', 'h'], kh('Calma. O tempo parece andar mais devagar aqui... e eu gosto disso.', 'h'), ['Hana', 'Que bom.', 'h']]);
+    await Cut.wait(1.2);
+    const ty = Player.y + 4, b = G.bird = { x: Player.x + 14, y: ty - 150, dead: 0 }; Sfx.whisper();
+    await Cut.job(dt => (b.y += 130 * dt) >= ty);
+    b.y = ty; b.dead = 1; Sfx.blip(90); Cut.fx('shake', 250); Player.scare = H.scare = R.scare = .9;
+    await Cut.wait(1.3);
+    await Cut.say([['Ren', '...!', 'x'], ['Hana', 'Um pássaro... caiu do céu, bem na nossa frente.', 'x'], kh('Não tem ferida nenhuma. Nem sangue.', 's'), ['Ren', 'Ele só... parou de voar?', 'x'], ['Hana', 'Vamos enterrar ele debaixo da cerejeira. Vem.', 's'], kh('(O rio continua correndo, mas nenhum pássaro canta.)', 'x')]);
+    G.w = 1; G.bird = null;
+    await Cut.say([nar('Hana embrulhou o pássaro num lenço e seguiu na frente, em silêncio.'), kh('Vou ajudar a enterrá-lo, debaixo da cerejeira.', 's')]);
+  },
+  async cervo() { // a clareira
+    const [H, R] = World.maps.bosque.npcs;
+    await Cut.wait(.3); Player.dir = 3; H.dir = R.dir = 3; H.x = Player.x - 16; H.y = Player.y; R.x = Player.x - 30; R.y = Player.y + 2;
+    G.deer = { x: 31 * 16 + 8, y: 12 * 16 + 14, dir: 2, sick: 0 };
+    await Cut.say([['Hana', 'Shhh... parem. Ali.', 'x']]);
+    await Cut.pan(31 * 16, 11 * 16, 1.8);
+    await Cut.say([nar('No meio da clareira, um cervo bebia água do pequeno lago.'), nar('A pelagem era clara, quase cinzenta perto do flanco. Os olhos pareciam velhos demais.'), ['Ren', 'É enorme...', 'o'], ['Hana', 'Nunca vi um tão perto. Fique quietinha, Koharu.', 'o']]);
     await Cut.pan(Player.x, Player.y, 1.4); Cut.focus = null;
-    await Cut.say([kh('Genji... você viu alguém perto da placa?', 'x'), ['Genji', 'Não há ninguém ali, moça. Faz muito tempo que ninguém passa por aquela trilha.'], kh('(Eu vi. Tenho certeza de que vi.)', 's')]);
+    await Cut.say([kh('Preciso desenhar isso. Agora.', 'o')]);
+    await new Promise(r => Draw.start('cervo', r));
+    await Cut.say([kh('Pronto. Consegui o olhar dele.', 'h'), ['Ren', 'Ele está olhando pra gente...', 'x']]);
+    Sfx.whisper(); await Cut.wait(.8);
+    G.deer.dir = 3; await Cut.walk(G.deer, 35 * 16, 12 * 16 + 14, 30); G.deer = null;
+    await Cut.say([['Hana', 'Foi embora... mas parecia que nos conhecia.', 's'], kh('Havia algo errado nos olhos dele.', 's')]);
+    G.ch = 5;
+    await Cut.say([nar('Hana e Ren voltaram para casa em silêncio. Pelo caminho, todos na vila olhavam para o bosque.'), kh('Vou perguntar o que sabem sobre aquele cervo.', 'n')]);
+  },
+  async mordida() { // o cervo morde o Takeshi e some
+    const T = World.maps.vila.npcs[4];
+    await Cut.pan(T.x, T.y - 8, 1.4);
+    await Cut.say([['Takeshi', 'Koharu. Que bom que apareceu. Hoje cedo achei pegadas de cervo bem na porta da minha casa.', 'n'], ['Takeshi', 'Elas vêm do bosque, atravessam a ponte e param aqui. Como se o bicho soubesse onde eu moro.', 'n']]);
+    G.deer = { x: 43 * 16, y: 12 * 16 + 14, dir: 2, sick: 1 }; Sfx.whisper();
+    await Cut.walk(G.deer, 37 * 16, 12 * 16 + 14, 34);
+    await Cut.say([kh('Takeshi... atrás de você.', 'x'), ['Takeshi', 'Aquele cervo... o mesmo da clareira. Só que o pelo dele está... caindo?', 'x']]);
+    await Cut.walk(G.deer, T.x + 14, T.y, 70);
+    await Cut.say([kh('Os olhos... Takeshi, não se mexa!', 'x')]);
+    await Cut.walk(G.deer, T.x + 6, T.y, 170); Cut.fx('red', 500); Cut.fx('shake', 500); Sfx.blip(70); Sfx.whisper();
+    await Cut.say([['Takeshi', 'AAARGH! Meu braço! Ele me mordeu!', 'a']]);
+    G.deer.dir = 3; await Cut.walk(G.deer, 44 * 16 + 24, 12 * 16 + 14, 150); G.deer = null;
+    T.pal = 'take1'; G.ch = 6;
+    await Cut.say([['Takeshi', 'Ele foi embora... sem nem olhar para trás.', 's'], kh('Você está sangrando! Eu pego um pano, fique aqui!', 'x'), ['Takeshi', 'Não... não é o sangue. É o osso. Arde por dentro, como se algo estivesse acordando.', 's']]);
+    await Cut.pan(Player.x, Player.y, 1.2); Cut.focus = null;
+    await Cut.card(['Fim do Capítulo 1.', 'Capítulo 2 — As flores brancas'], 1.4);
   }
 };
-const TIPS = ['Examine tudo: os objetos guardam o que as pessoas não dizem.', 'Converse com todos na vila, mais de uma vez.', 'Esc pausa o jogo a qualquer momento.', 'Nas cenas, aperte X para pular.', 'Nem toda sombra é só o vento.'];
-function loadScreen(sec, cb) { // tela de carregamento com barra e dicas
-  const L = $('loading'), bar = L.querySelector('i'), t0 = performance.now();
-  $('tip').textContent = TIPS[Math.random() * TIPS.length | 0]; bar.style.width = '0'; L.hidden = false;
-  const step = now => { const p = Math.max(0, Math.min(1, (now - t0) / (sec * 1000))); bar.style.width = p * p * (3 - 2 * p) * 100 + '%'; if (p < 1) requestAnimationFrame(step); else setTimeout(() => { L.hidden = true; cb(); }, 300); };
+
+/* ===== draw.js ===== */
+// Desafio de desenho: guie o pincel pelos pontos, na ordem. O 3º valor 1 = levantar o pincel antes desse ponto.
+const Draw = {
+  on: false, pts: [], i: 1, c: [0, 0], tr: [], t: 0, done: 0, cb: null, title: '',
+  S: {
+    paisagem: { t: 'A paisagem', pts: [[40, 150, 1], [85, 112], [125, 132], [185, 86], [245, 126], [285, 148], [150, 52, 1], [166, 42], [180, 54], [194, 42], [210, 52]] },
+    cervo: { t: 'O cervo', pts: [[104, 56, 1], [112, 72], [124, 64], [118, 48], [128, 92, 1], [150, 102], [200, 100], [226, 94], [232, 132], [222, 162], [176, 162, 1], [180, 128], [148, 130], [146, 162]] }
+  },
+  start(k, cb) { const s = this.S[k]; this.pts = s.pts; this.title = s.t; this.i = 1; this.c = [s.pts[0][0], s.pts[0][1]]; this.tr = []; this.t = 0; this.done = 0; this.cb = cb; this.on = true; G.mode = 'draw'; $('hud').hidden = true; },
+  update(dt) {
+    this.t += dt; if (this.done) { if ((this.done -= dt) <= 0) this.end(); return; }
+    const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0), mv = dx || dy, v = 60 * dt / (dx && dy ? 1.414 : 1), p = this.pts[this.i];
+    this.c[0] = Math.max(20, Math.min(300, this.c[0] + dx * v + (mv ? Math.sin(this.t * 9) * .35 : 0)));
+    this.c[1] = Math.max(16, Math.min(176, this.c[1] + dy * v + (mv ? Math.cos(this.t * 7) * .35 : 0)));
+    if (mv) this.tr.push([this.c[0], this.c[1], !p[2]]);
+    if (Math.hypot(this.c[0] - p[0], this.c[1] - p[1]) < 6) { Sfx.blip(480 + this.i * 25); if (++this.i >= this.pts.length) this.done = 1.2; }
+  },
+  end() { if (!this.on) return; this.on = false; G.mode = 'play'; $('hud').hidden = Cut.active; const cb = this.cb; this.cb = null; if (cb) cb(); },
+  draw(g) {
+    g.fillStyle = '#2a2438'; g.fillRect(0, 0, W, H); g.fillStyle = '#f4e8ce'; g.fillRect(12, 8, 296, 176); g.fillStyle = '#e9dcbc'; g.fillRect(12, 8, 296, 2); g.fillRect(12, 182, 296, 2);
+    g.fillStyle = '#b9a98a'; this.pts.forEach(([x, y], k) => { if (k >= this.i) g.fillRect(x - 1, y - 1, 3, 3); });
+    const p = this.pts[this.i];
+    if (p) { g.strokeStyle = '#d98fa0'; g.lineWidth = 1; const r = 4 + Math.sin(this.t * 6) * 1.5; g.strokeRect(Math.round(p[0] - r), Math.round(p[1] - r), r * 2, r * 2); }
+    g.strokeStyle = '#2a2438'; g.lineWidth = 1.5; g.beginPath(); this.tr.forEach((q, k) => { const a = this.tr[k - 1]; if (k && q[2] && a[2]) { g.moveTo(a[0], a[1]); g.lineTo(q[0], q[1]); } }); g.stroke();
+    g.fillStyle = '#8a6248'; g.fillRect(this.c[0] | 0, (this.c[1] | 0) - 7, 1, 7); g.fillStyle = '#232a5c'; g.fillRect((this.c[0] | 0) - 1, (this.c[1] | 0) - 1, 2, 2);
+    g.fillStyle = '#4a3328'; g.font = '7px "Pixelify Sans", serif'; g.fillText(this.title + '  ·  setas/WASD: mover o pincel  ·  X: pular', 18, 20);
+    if (this.done) { g.fillStyle = '#d98fa0'; g.fillText('✿ pronto', 140, 176); }
+  }
+};
+
+const TIPS = ['Examine tudo: os objetos guardam o que as pessoas não dizem.', 'Converse com todos na vila, mais de uma vez.', 'Esc pausa o jogo a qualquer momento.', 'Nas cenas, aperte X para pular.', 'Desenhar é o jeito da Koharu enxergar o mundo.', 'Quando os pássaros se calam, algo está errado.', 'Kessai não tem pressa. Passeie com calma.'];
+function scenery(g, t) { // paisagem animada da tela de carregamento: amanhecer, nuvens, montanhas em camadas, arrozais e cerejeira
+  const sky = g.createLinearGradient(0, 0, 0, 130); ['#34305f', '#8a5f9a', '#e48f9b', '#f8c7a4', '#fbe5bd'].forEach((c, i) => sky.addColorStop(i / 4, c));
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#fff2c8'; g.beginPath(); g.arc(226, 118 - Math.min(t * 2.5, 40), 15, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,238,228,.8)';
+  for (let i = 0; i < 6; i++) { const x = (i * 71 + t * (4 + i * 1.7)) % (W + 90) - 45, y = 16 + i * 15; g.fillRect(x, y, 30 + i * 5, 4); g.fillRect(x + 6, y - 3, 18, 3); g.fillRect(x + 12, y + 4, 20, 2); }
+  [['#8a6fa0', 96, .011, 16, 3], ['#6a5c8e', 112, .019, 12, 6], ['#4d4d7c', 126, .03, 8, 10]].forEach(([c, b, f, a, sp], k) => { g.fillStyle = c; for (let x = 0; x < W; x++) { const y = b + Math.sin((x + t * sp) * f + k * 2) * a + Math.sin((x + t * sp) * f * 3.1) * a * .3; g.fillRect(x, y, 1, H - y); } });
+  ['#7aa56a', '#6b9a5f', '#5c8a54', '#4b7a49'].forEach((c, k) => { g.fillStyle = c; for (let x = 0; x < W; x++) { const y = 140 + k * 14 + Math.sin(x * .04 + k * 1.7) * 3; g.fillRect(x, y, 1, H - y); } });
+  g.fillStyle = '#c8a67e'; g.fillRect(34, 150, 34, 18); g.fillStyle = '#6f7f95'; for (let r = 0; r < 8; r++) g.fillRect(44 - 2 * r, 142 + r, 14 + 4 * r, 1);
+  g.fillStyle = Math.sin(t * 3) > .2 ? '#ffd98a' : '#f0b866'; g.fillRect(44, 156, 7, 7); g.fillStyle = '#6e4a34'; g.fillRect(55, 157, 7, 11);
+  g.fillStyle = '#6e4a34'; g.fillRect(266, 130, 6, 40);
+  for (let i = 0; i < 46; i++) { g.fillStyle = i % 3 ? '#f2b7c4' : '#fbd6dd'; g.fillRect(246 + (i * 37) % 50, 102 + (i * 53) % 34, 6, 4); }
+  g.fillStyle = '#f7c6d0'; for (let i = 0; i < 18; i++) g.fillRect(((i * 53 + t * (9 + i % 5)) % W) | 0, ((i * 29 + t * (14 + i % 4)) % H) | 0, 2, 1);
+  const bx = (t * 22) % (W + 40) - 20, by = 40 + Math.sin(t * 2) * 4, w = Math.sin(t * 9) > 0 ? -1 : 1;
+  g.fillStyle = '#4b4458'; g.fillRect(bx, by, 2, 1); g.fillRect(bx - 2, by + w, 2, 1); g.fillRect(bx + 2, by + w, 2, 1);
+}
+function loadScreen(sec, cb) { // tela de carregamento longa, com paisagem animada, barra e dicas que trocam sozinhas
+  const L = $('loading'), bar = L.querySelector('#bar i'), lg = $('lc').getContext('2d'), t0 = performance.now(), off = Math.random() * TIPS.length | 0; let ti = -1;
+  bar.style.width = '0'; L.hidden = false;
+  const step = now => {
+    const e = (now - t0) / 1000, p = Math.max(0, Math.min(1, e / sec)), k = Math.floor(e / 2.8);
+    if (k !== ti) { ti = k; $('tip').textContent = TIPS[(k + off) % TIPS.length]; }
+    scenery(lg, e); bar.style.width = (p * p * (3 - 2 * p) * 100) + '%';
+    if (p < 1) requestAnimationFrame(step); else setTimeout(() => { L.hidden = true; cb(); }, 300);
+  };
   requestAnimationFrame(step);
 }
 
@@ -491,7 +674,7 @@ function loadScreen(sec, cb) { // tela de carregamento com barra e dicas
 const $ = id => document.getElementById(id);
 const W = 320, H = 192;
 const cv = $('c'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
-const G = { mode: 'title', map: null, id: '', seen: {}, talked: 0, rumor: 0, fade: null, s2: 0, tk: 0, s3: 0, gone: 0, tint: null };
+const G = { mode: 'title', map: null, id: '', seen: {}, ch: 0, met: {}, fitas: {}, open: 0, s4: 0, s5: 0, bird: null, deer: null, fl: 0, tr: 0, w: 0, gh: null, fade: null, tint: null };
 const keys = {};
 const Sfx = { ctx: null, whisper() {
   try { const a = this.ctx = this.ctx || new AudioContext(), n = a.sampleRate * .9, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
@@ -503,30 +686,158 @@ const Sfx = { ctx: null, whisper() {
     o.type = 'triangle'; o.frequency.value = f; v.gain.setValueAtTime(.03, a.currentTime); v.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .06);
     o.connect(v).connect(a.destination); o.start(); o.stop(a.currentTime + .07); } catch (e) {} } };
 
+function nf() { return Object.keys(G.fitas).length; }
 function objective() {
-  const n = ['easel', 'bau', 'quadro'].filter(k => G.seen[k]).length;
-  $('hud').textContent = 'Objetivo: ' + (n < 3 ? `examinar os pertences da casa (${n}/3)` : !G.talked ? 'sair e conhecer a vila' : !G.rumor ? 'passear pela vila' : (G.gone ? 'descobrir o que tomou conta do Takeshi' : 'procurar quem conheça o bosque'));
+  const S = STEPS[G.ch]; if (S) { const a = S.find(a => !G.seen[a[0]]); $('hud').textContent = 'Objetivo: ' + (a ? (a[1].call ? a[1]() : a[1]) : '...'); return; }
+  const n = ['easel', 'bau', 'quadro'].filter(k => G.seen[k]).length, m = Object.keys(G.met).length;
+  $('hud').textContent = 'Objetivo: ' + [
+    `examinar os pertences da casa (${n}/3)`, `conhecer o pessoal da vila (${m}/5)`, 'voltar para casa e pintar no cavalete', G.w ? 'enterrar o pássaro sob a cerejeira' : 'encontrar a Hana na praça da vila',
+    G.open ? 'seguir a trilha até a clareira' : nf() < 3 ? `achar as cordas nas fitas vermelhas (${nf()}/3)` : 'levar as cordas até a Hana',
+    'passear pela vila com calma', 'Capítulo 2 em breve...'][G.ch];
 }
-function load(id, tx, ty) { G.id = id; G.map = World.maps[id]; Player.place(tx, ty); }
+function load(id, tx, ty) { G.id = id; G.seen['m_' + id] = 1; G.map = World.maps[id]; Player.place(tx, ty); }
 function newGame() {
-  G.seen = {}; G.talked = G.rumor = G.s2 = G.tk = G.s3 = G.gone = 0; Ambient.reset(); G.fade = null; Dialogue.stop();
+  Object.assign(G, { seen: {}, met: {}, fitas: {}, ch: 0, open: 0, s4: 0, s5: 0, bird: null, deer: null, fl: 0, tr: 0, w: 0, gh: null }); World.reset(); Ambient.reset(); G.fade = null; Dialogue.stop();
   Cut.play(Scenes.intro, () => { objective(); Dialogue.start([['', 'Primeiro dia na casa nova. Tudo ainda tem cheiro de madeira velha e de tinta seca.']], null); });
 }
 function interact() {
   const [x, y] = Player.reach(), t = World.at(G.map, x, y); if (!t) return;
+  const o = t.pal && (L[t.pal.slice(0, 4)] || {})[G.ch], k = o && !G.seen[o[1]] && (!o[3] || o[3]()) && o;
   if (t.k) G.seen[t.k] = 1;
-  Dialogue.start(t.talk ? t.talk(G) : t.text, () => { if (t.after) t.after(G); objective(); if (G.rumor && !G.s2) { G.s2 = 1; Cut.play(Scenes.bosque); } else if (G.tk === 3 && !G.s3) { G.s3 = 1; Cut.play(Scenes.takeshi); } });
+  Dialogue.start(k ? k[0] : t.talk ? t.talk(G) : t.text, () => {
+    if (k) { G.seen[k[1]] = 1; if (k[2]) k[2](); }
+    if (t.after) t.after(G);
+    const n = ['easel', 'bau', 'quadro'].filter(k => G.seen[k]).length;
+    if (G.ch === 0 && n >= 3) G.ch = 1;
+    if (G.ch === 1 && Object.keys(G.met).length >= 5) G.ch = 2;
+    if (G.ch === 3 && G.seen.tumulo) G.ch = 4;
+    adv();
+  });
 }
 function checkDoor() {
-  const d = G.map.doors.find(d => Player.x >= d.x * 16 && Player.x < (d.x + d.w) * 16 && Player.y - 2 >= d.y * 16 && Player.y - 2 < (d.y + d.h) * 16);
+  const d = G.map.doors.find(d => (!d.on || d.on(G)) && Player.x >= d.x * 16 && Player.x < (d.x + d.w) * 16 && Player.y - 2 >= d.y * 16 && Player.y - 2 < (d.y + d.h) * 16);
   if (d) G.fade = { a: 0, out: true, d };
 }
+function triggers() { // cenas que disparam quando a Koharu chega a certo lugar
+  if (Dialogue.active || Cut.active || G.fade) return;
+  if (G.ch === 4 && G.open && !G.s4 && G.id === 'bosque' && Player.x > 28 * 16) { G.s4 = 1; Cut.play(Scenes.cervo, objective); }
+}
+
+/* ===== story.js ===== */
+// Capítulos 2 ao Epílogo. STEPS: tarefas de cada capítulo; ao cumprir todas roda a cena END. L: falas extras dos NPCs [linhas, marca, efeito, pré-condição].
+const rc = (g, c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); }, obj0 = Art.obj;
+Art.obj = (g, t, x, y) => {
+  const r = (c, a, b, w, h) => rc(g, c, x + a, y + b, w, h);
+  if (t === 'wf') { const s = G.fl | 0, c = ['#fffdf6', '#cfc9c0', '#575260'][s]; r('#6f9a64', 7, 6, 2, 10); r(c, 4, 1, 8, 6); r(c, 6, 0, 4, 9); r(s ? c : '#f0d28a', 7, 3, 2, 2); if (s > 1) { r('#2a2438', 5, 3, 1, 3); r('#2a2438', 10, 2, 1, 4); } }
+  else if (t === 'oldtree') { const s = G.tr | 0, c = ['#7fae6f', '#5f6a4a', '#3a3a34'][s]; r('#6e4a34', 10, -8, 12, 24); r('#8a6248', 10, -8, 4, 24); r(c, -8, -34, 48, 18); r(c, 0, -40, 32, 30); r(c, -4, -22, 40, 12); if (s) { r('#1d1b2e', 8, -28, 3, 5); r('#1d1b2e', 22, -20, 4, 4); } if (s > 1) { r('#1d1b2e', 15, -4, 2, 10); r('#1d1b2e', 4, -30, 5, 3); } }
+  else if (t === 'stone') { r('#9a97a3', 3, 4, 10, 10); r('#b9b6c3', 3, 4, 10, 2); r('#4b4458', 6, 7, 1, 4); r('#4b4458', 9, 7, 1, 4); }
+  else if (t === 'mound') { r('#8a6248', 3, 8, 10, 6); r('#a07a5c', 4, 7, 8, 2); r('#f2b7c4', 7, 4, 2, 3); }
+  else if (t === 'page') { r('#f4e8ce', 4, 7, 8, 6); r('#c9b48a', 5, 9, 5, 1); r('#8a6248', 5, 11, 4, 1); }
+  else obj0(g, t, x, y);
+};
+Object.assign(Draw.S, {
+  flores: { t: 'As flores brancas', pts: [[140, 150, 1], [140, 100], [120, 80], [140, 64], [160, 80], [140, 100], [200, 150, 1], [200, 110], [184, 94], [200, 80], [216, 94], [200, 110]] },
+  arvore: { t: 'A árvore antiga', pts: [[150, 160, 1], [150, 100], [108, 90], [122, 50], [160, 34], [198, 50], [212, 90], [170, 100], [170, 160]] },
+  sayuri: { t: 'Sayuri', pts: [[160, 40, 1], [140, 56], [142, 80], [160, 92], [180, 80], [180, 56], [160, 40], [120, 166, 1], [130, 112], [160, 100], [190, 112], [200, 166]] },
+  vila: { t: 'Kessai', pts: [[50, 140, 1], [50, 100], [80, 78], [110, 100], [110, 140], [50, 140], [180, 150, 1], [180, 70], [212, 48], [244, 70], [244, 150], [270, 150, 1], [290, 100]] }
+});
+Art.pal.sayuri = { ...Art.pal.koharu, st: 1, t: '#dcd4f0', t2: '#b9b0d8', b: '#dcd4f0', b2: '#b9b0d8', o: '#d98fa0', hl: 13 };
+const [Ha, Re, Su, Ge, Ta] = ['Hana', 'Ren', 'Sumi', 'Genji', 'Takeshi'].map(n => (t, e) => [n, t, e]);
+const cnt = (p, n) => [...Array(n)].filter((_, i) => G.seen[p + (i + 1)]).length;
+const L = {
+  hana: {
+    6: [[Ha('Koharu! Venha conhecer o jardim da minha família. As flores brancas só crescem lá, e hoje estão lindas.', 'h'), kh('Eu vou. Já estou curiosa.', 'h')], 'h6'],
+    8: [[Ha('Minha avó dizia que ela era uma artista, não uma bruxa.', 'o'), kh('E se as duas coisas forem verdade?', 's')], 'l3'],
+    9: [[Ha('Koharu... a dona Sumi sumiu, e agora o Genji. O Ren achou pegadas suas perto das duas casas.', 's'), kh('Eu... estava só pintando.', 'x'), Ha('Não estou te acusando. Só quero entender. Você parece tão longe.', 's')], 'h9', 0, () => G.seen.e2],
+    12: [[Ha('A vila aos poucos se acalma. O jardim ficou vazio sem as flores...', 's'), kh('Plantamos outras. Eu ajudo.', 'h'), Ha('Eu gostaria muito.', 'h')], 'ep0']
+  },
+  ren: {
+    7: [[Re('Koharu! Sabe a árvore velha do santuário? Dizem que ela protege a vila inteira!', 'h'), Re('É só sair pela trilha do lado oeste da vila. Vai lá ver!', 'h')], 'r7'],
+    9: [[Re('A loja da dona Sumi está fechada. O chá ainda estava morno, mas ela sumiu.', 'x'), Re('Os adultos dizem que ela foi visitar parentes. Eu não acredito.', 's')], 'v1', 0, () => G.seen.e1],
+    10: [[Re('Koharu! Eu e a Hana achamos uma passagem atrás da estante, na sala escondida do santuário.', 'o'), Re('Tem muitas pinturas lá. Vai ver... e não fique brava.', 's')], 'r10']
+  },
+  sumi: {
+    5: [[Su('Cervo grande e velho? Hm. Os bichos andam esquisitos desde aquele pássaro. Fale com o Genji.', 's')], 'c1'],
+    6: [[Su('Flores que escurecem? Planta doente tem praga. Mas você falou em "rachaduras"?', 'o'), Su('Isso não é doença. Parece mais... deixa pra lá, velha tagarela.', 's')], 's6', () => { if (G.fl === 1) G.fl = 2; }, () => G.fl >= 1],
+    8: [[Su('A mulher sem nome? Amaldiçoada, isso sim. Tudo que ela pintava sumia.', 'x'), Su('Meu pai dizia que ela matou a filha de tanto sofrer.', 's')], 'l1']
+  },
+  genj: {
+    5: [[Ge('O cervo do bosque é o guardião daqui. Mas os olhos do que você viu não eram de guardião.', 'x'), Ge('O Takeshi mora perto da ponte e anda inquieto. Vá vê-lo.', 'n')], 'c2'],
+    7: [[Ge('Essa árvore tem trezentos anos. Enquanto viver, Kessai prospera.', 'n'), Ge('Se algo acontecer com ela... nem quero pensar.', 's')], 'g7', () => { G.tr = 2; }, () => G.tr >= 1],
+    8: [[Ge('Amaldiçoada? Não. Era uma artista de grande talento que enlouqueceu de tristeza.', 'n'), Ge('A dor faz coisas assim com as pessoas.', 's')], 'l2']
+  },
+  take: { 5: [[Ta('Koharu, chegou na hora. Preciso te mostrar uma coisa.', 'n')], 'c3', 0, () => G.seen.c1 && G.seen.c2] }
+};
+const STEPS = {
+  5: [['c1', 'perguntar à dona Sumi sobre o cervo'], ['c2', 'conversar com o Genji'], ['c3', 'ir ver o Takeshi']],
+  6: [['h6', 'falar com a Hana na praça'], ['wf1', 'ver as flores brancas no jardim da Hana'], ['s6', 'pedir conselho à dona Sumi sobre as flores'], ['esb', 'examinar os esboços em casa'], ['wf2', 'voltar ao jardim da Hana']],
+  7: [['r7', 'conversar com o Ren sobre a árvore antiga'], ['m_santuario', 'ir ao santuário, pela saída oeste da vila'], ['pz', () => `ler as inscrições do pátio (${cnt('i', 3)}/3)`], ['reg', 'examinar os registros na sala escondida'], ['arv', 'pintar a árvore antiga'], ['g7', 'perguntar ao Genji sobre a árvore'], ['arv2', 'voltar à árvore antiga']],
+  8: [['l1', 'perguntar à dona Sumi sobre a gueixa'], ['l2', 'perguntar ao Genji sobre a gueixa'], ['l3', 'falar com a Hana'], ['pg', () => `achar as páginas rasgadas do caderno (${cnt('p', 3)}/3)`]],
+  9: [['e1', 'pintar no cavalete de casa'], ['v1', 'falar com o Ren na praça'], ['e2', 'pintar mais uma vez no cavalete'], ['h9', 'falar com a Hana'], ['bau9', 'descansar perto do baú da mamãe']],
+  10: [['r10', 'falar com o Ren na praça'], ['m_galeria', 'entrar na galeria, na sala escondida do santuário'], ['gal', () => `examinar as pinturas (${cnt('gk', 4)}/4)`], ['gs', 'ver a pintura de Sayuri'], ['cad', 'ler o caderno sobre a gueixa']],
+  11: [['ult', 'encarar a pintura incompleta de Sayuri']],
+  12: [['ep0', 'rever a Hana na praça'], ['ep1', 'pintar a vila no cavalete']],
+  13: [['_', 'passear por Kessai. Obrigado por jogar!']]
+};
+Object.assign(Scenes, {
+  async flores() {
+    G.fl = 3; Sfx.whisper(); Cut.fx('shake', 400); await Cut.wait(1);
+    await Cut.say([kh('As flores... sumiram. Só ficou a terra revirada, como se nunca tivessem existido.', 'x'), nar('Um sussurro parece sair do papel que Koharu guarda consigo.'), kh('O pássaro. O cervo. As flores. Todos eu pintei antes.', 'x'), kh('Será que eu...?', 's')]);
+    G.ch = 7; await Cut.card(['Fim do Capítulo 2.', 'Capítulo 3 — A árvore antiga'], 1.4);
+  },
+  async arvore() {
+    G.tr = 3; Sfx.whisper(); Cut.fx('shake', 600); await Cut.wait(1.2);
+    await Cut.say([nar('A árvore antiga desapareceu. Restou um círculo de terra escura e um sussurro mais nítido que nunca.'), Re('A árvore sumiu! Koharu, olha! Tem uma caixa no meio da terra!', 'x'), nar('Na caixa, uma fotografia antiga de uma gueixa e uma anotação: "Mulher que tentou encontrar a filha por meio da arte."'), kh('Esta caligrafia... é parecida com a da mamãe.', 'x')]);
+    G.ch = 8; await Cut.card(['Fim do Capítulo 3.', 'Capítulo 4 — A lenda da mulher sem nome'], 1.4);
+  },
+  async lenda() {
+    await Cut.say([nar('Koharu junta as três páginas no chão. Faltam pedaços, mas dá para ler uma frase pela metade.'), kh('"Só se lembra de verdade quem aceita..." O resto foi rasgado.', 's'), kh('E há o desenho de uma porta atrás de uma estante. Uma galeria escondida.', 'o')]);
+    Ambient.v = { x: Player.x + 40, y: Player.y, age: 1, max: 99 }; Sfx.whisper(); await Cut.wait(1.6);
+    await Cut.say([nar('Na vidraça, uma mulher de quimono observa. Ela não se move.'), kh('Ela está me olhando... Quer me ferir? Ou me ajudar?', 'x')]);
+    Ambient.v = null; G.ch = 9; await Cut.card(['Fim do Capítulo 4.', 'Capítulo 5 — Pessoas sem sombra'], 1.4);
+  },
+  async oculta() {
+    await Cut.fade(1, 1.2); await Cut.card(['Koharu pinta em silêncio.', 'Você não vê o que ela pinta.'], 1);
+    G.seen[G.seen.e1 ? 'e2' : 'e1'] = 1; Sfx.whisper(); await Cut.fade(0, 1.2);
+    await Cut.say([kh(G.seen.e2 ? 'Mais uma... só mais uma.' : 'Está feito. Por que minhas mãos tremem?', 's')]);
+  },
+  async sonho() {
+    await Cut.fade(1, 1.4); await Cut.card(['Sayuri está sentada diante de uma pintura inacabada.', 'Ela não se vira.'], 1); await Cut.fade(0, 1.4);
+    await Cut.say([kh('Mamãe...!', 'x'), nar('Escondida entre os pertences dela, uma carta na letra de Sayuri.'), nar('"Quando a última imagem desaparecer, você poderá me ver mais uma vez."'), kh('Ela sabia... Ela sabia o que ia acontecer.', 'x')]);
+    G.ch = 10; await Cut.card(['Fim do Capítulo 5.', 'Capítulo 6 — A galeria escondida'], 1.4);
+  },
+  async galeria() {
+    await Cut.say([Re('Koharu... esse é o rosto da dona Sumi. E aquela é a árvore do santuário.', 's'), Ha('Você sabia, não é? Desde o começo.', 's'), kh('Eu... não sei como explicar.', 'x'), nar('Sayuri pesquisou a história da gueixa e deixou instruções. Falta só a última peça.'), kh('Preciso terminar o quadro da mamãe. Sozinha.', 's')]);
+    G.ch = 11; await Cut.card(['Fim do Capítulo 6.', 'Capítulo Final — A última pintura'], 1.4);
+  },
+  async ultima() {
+    await Cut.say([Ha('Koharu... explica. Por favor.', 's'), kh('Depois que a mamãe morreu, achei os registros dela. Ela tinha planejado a sequência de imagens.', 's'), kh('Eu a segui. Achei que, ao terminar, poderia ouvir a voz dela uma última vez.', 's'), Re('Então os desaparecimentos... foram você.', 'x'), kh('Não foram acidentes. Perdão.', 's'), nar('Você não viu todas as pinturas porque nunca soube tudo o que Koharu sabia. O jogo acompanhou apenas aquilo em que você acreditava.')]);
+    await new Promise(r => Draw.start('sayuri', r));
+    G.gh = { x: 12 * 16 + 8, y: 6 * 16 + 14, a: 0 }; Sfx.whisper();
+    await Cut.job(dt => (G.gh.a += dt * .5) >= .75);
+    await Cut.say([['Sayuri', 'Koharu... você se lembrou de mim.', 's'], ['Sayuri', 'Obrigada. Mas o amor não depende de uma imagem para existir.', 'h'], kh('Mamãe... eu não quero te perder de novo.', 's'), ['Sayuri', 'Você não me perde. Só deixa de me segurar.', 'n'], kh('...Então eu deixo.', 's')]);
+    await Cut.job(dt => (G.gh.a -= dt * .3) <= 0); G.gh = null; Sfx.whisper();
+    await Cut.say([nar('A pintura se desfez devagar, junto com o último sussurro da gueixa.'), nar('Não houve monstro nem batalha. Houve uma escolha: aceitar a perda.')]);
+    G.ch = 12; await Cut.fade(1, 1.4); await Cut.card(['Fim do Capítulo Final.', 'Epílogo — Aquilo que permanece'], 1.6);
+    load('vila', 5, 10); Player.dir = 0; G.tint = null; await Cut.fade(0, 1.6);
+    await Cut.say([nar('Os desaparecidos não voltaram. A árvore e as flores continuam ausentes, e a vila aprende a viver com essas perdas.'), kh('Preciso rever o pessoal.', 'n')]);
+  },
+  async fim() {
+    await Cut.say([kh('Casas, cerejeiras e luz da manhã. Nada some. Tudo apenas existe.', 'h')]);
+    await Cut.fade(1, 2); await Cut.wait(1); Sfx.whisper(); await Cut.wait(1.5);
+    await Cut.card(['Um sussurro, muito leve.', 'A gueixa? Uma lembrança de Sayuri? Ou só o vento.', '', 'Kessai', 'Obrigado por jogar.'], 3);
+    G.ch = 13;
+  }
+});
+const END = { 5: Scenes.mordida, 6: Scenes.flores, 7: Scenes.arvore, 8: Scenes.lenda, 9: Scenes.sonho, 10: Scenes.galeria, 11: Scenes.ultima, 12: Scenes.fim };
+function adv() { const S = STEPS[G.ch]; if (S && S.every(a => G.seen[a[0]])) Cut.play(END[G.ch], adv); else objective(); }
 
 const petals = Array.from({ length: 24 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 6 + Math.random() * 8, p: Math.random() * 6 }));
 const vg = g.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, W * .65);
 vg.addColorStop(0, 'rgba(40,30,60,0)'); vg.addColorStop(1, 'rgba(40,30,60,.35)');
 
 function render() {
+  if (G.mode === 'draw') return Draw.draw(g);
   const m = G.map; if (!m) return;
   g.fillStyle = '#1d1b2e'; g.fillRect(0, 0, W, H);
   const F = Cut.focus || Player, cx = Math.max(0, Math.min(m.w * 16 - W, Math.round(F.x - W / 2))), cy = Math.max(0, Math.min(m.h * 16 - H, Math.round(F.y - H / 2)));
@@ -534,8 +845,11 @@ function render() {
   for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) g.drawImage(Art.tiles[m.g[j][i]], i * 16, j * 16);
   for (let j = 0; j < m.h; j++) for (let i = 0; i < m.w; i++) { const c = Art.tiles[m.g[j][i] + 'c']; if (c) g.drawImage(c, i * 16 + Ambient.sway(i, j), j * 16); }
   const items = [];
-  m.objs.forEach(o => items.push([(o.y + 1) * 16, () => Art.obj(g, o.t, o.x * 16, o.y * 16)]));
+  World.objs(m).forEach(o => items.push([(o.y + 1) * 16, () => Art.obj(g, o.t, o.x * 16, o.y * 16)]));
   World.npcs(m).forEach(n => items.push([n.y, () => Ambient.char(g, n, n.x - 8, n.y - 21, n.dir, 0, Art.pal[n.pal])]));
+  if (G.deer) items.push([G.deer.y, () => Art.deer(g, G.deer.x - 10, G.deer.y - 18, G.deer.dir, G.deer.sick)]);
+  if (G.gh) items.push([G.gh.y, () => { g.globalAlpha = Math.min(1, G.gh.a); Ambient.char(g, { x: G.gh.x, y: G.gh.y, scare: 0 }, G.gh.x - 8, G.gh.y - 21, 0, 0, Art.pal.sayuri); g.globalAlpha = 1; }]);
+  if (G.bird) items.push([G.bird.y + 6, () => Art.bird(g, G.bird)]);
   items.push([Player.y, () => Ambient.char(g, Player, Player.x - 8, Player.y - 21, Player.dir, Player.step, Art.pal.koharu)]);
   items.sort((a, b) => a[0] - b[0]).forEach(it => it[1]());
   Ambient.drawWorld(g); g.restore(); if (!m.indoor) Ambient.drawBirds(g);
@@ -558,6 +872,7 @@ function frame(t) {
     } else if (!Dialogue.active && !Cut.active) { Player.update(dt, G.map, keys); if (Player.moving) checkDoor(); }
     Cut.update(dt); Ambient.update(dt); petals.forEach(p => { p.y += p.v * dt; p.x += Math.sin(p.p += dt) * 12 * dt + 8 * dt; if (p.y > H || p.x > W) { p.y = -2; p.x = Math.random() * W; } });
   }
+  if (G.mode === 'draw') Draw.update(dt); else if (G.mode === 'play') triggers();
   render(); requestAnimationFrame(frame);
 }
 
@@ -567,6 +882,7 @@ addEventListener('keydown', e => {
   const k = kname(e); if (k) { keys[k] = 1; e.preventDefault(); }
   if (e.repeat) return;
   if (e.key === 'Escape') return togglePause();
+  if (G.mode === 'draw') { if (e.key.toLowerCase() === 'x') Draw.end(); return; }
   if (G.mode !== 'play') return;
   if (Cut.active && e.key.toLowerCase() === 'x') return Cut.skipAll();
   if (e.key === ' ' || e.key === 'Enter' || e.key.toLowerCase() === 'e') { e.preventDefault(); if (Dialogue.active) Dialogue.advance(); else if (!G.fade && !Cut.active) interact(); }
@@ -578,15 +894,15 @@ function togglePause() {
   if (G.mode === 'play') { G.mode = 'pause'; $('pause').hidden = false; $('resume').focus(); }
   else if (G.mode === 'pause') { G.mode = 'play'; $('pause').hidden = true; }
 }
-$('start').onclick = () => { $('title').hidden = true; loadScreen(1.6, () => { G.mode = 'play'; newGame(); }); };
+$('start').onclick = () => { $('title').hidden = true; loadScreen(8, () => { G.mode = 'play'; newGame(); }); };
 $('resume').onclick = togglePause;
 $('speed').onclick = () => { Dialogue.speed = Dialogue.speed === 40 ? 100 : 40; $('speed').textContent = 'Texto: ' + (Dialogue.speed === 40 ? 'normal' : 'rápido'); };
-$('restart').onclick = () => { $('pause').hidden = true; G.mode = 'title'; loadScreen(1.1, () => { G.mode = 'play'; newGame(); }); };
+$('restart').onclick = () => { $('pause').hidden = true; G.mode = 'title'; loadScreen(4, () => { G.mode = 'play'; newGame(); }); };
 
 function fit() { document.documentElement.style.setProperty('--s', Math.max(1, Math.min(Math.floor(innerWidth / W), Math.floor(innerHeight / H)))); }
 addEventListener('resize', fit); fit();
 load('casa', 9, 8); $('hud').textContent = '';
-loadScreen(2.2, () => {});
+loadScreen(5, () => {});
 requestAnimationFrame(frame);
 </script>
 </body></html>
