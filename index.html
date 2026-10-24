@@ -904,5 +904,210 @@ addEventListener('resize', fit); fit();
 load('casa', 9, 8); $('hud').textContent = '';
 loadScreen(5, () => {});
 requestAnimationFrame(frame);
+
+/* ===== kessai-plus.js =====
+ Cole este bloco dentro de um novo <script> ... </script> no FINAL do seu HTML (logo antes de </body>).
+ Adiciona: retratos 64x64 detalhados, terror progressivo, figurantes desenháveis, floricultura da Tsuta,
+ passeios com os amigos e remove falas sobre a mãe no meio da história. */
+(() => {
+const P = Art.pal, hz = () => G.ch >= 12 ? 0 : Math.max(0, Math.min(1, (G.ch - 3) / 9)), P2 = (x, y) => ({ x: x * 16 + 8, y: y * 16 + 14 });
+const dr = (k, cb, t) => { Draw.start(k, cb); if (t) Draw.title = t; };
+G.fg = G.fg || {};
+document.head.insertAdjacentHTML('beforeend', '<style>#face{width:calc(var(--s)*64px);height:calc(var(--s)*64px);top:calc(var(--s)*-28px)}#dlg.has{padding-left:calc(var(--s)*84px)}#dlg.has #who{left:calc(var(--s)*84px)}#hud{max-width:calc(var(--s)*240px)}</style>');
+Face.cv.width = Face.cv.height = 64;
+
+/* ---------- paletas: Hana (referência da imagem 3), Tsuta e figurantes ---------- */
+Object.assign(P.hana, { h: '#8a5a3a', h2: '#b98458', e: '#4fae5a', ey: '#1f3a24', t: '#a9d0ea', t2: '#7fa8cc', c: '#f06a9c', o: '#f06a9c', a: '#f2d45a', b: '#3a3f8a', b2: '#2a2f6a', f: '#1a1a22', f2: '#1a1a22', hl: 13, st: 0 });
+const mk = (h, h2, t, t2, b, hl, st, x) => ({ h, h2, s: '#f4d6bc', sd: '#d4ae96', sh: '#f0a6ac', e: '#4a3a30', ey: '#2a1a20', t, t2, c: t2, b, b2: t2, o: t2, f: '#4a3328', f2: '#4a3328', hl, st, ...x });
+const pl = {
+  tsu: mk('#d8d4dc', '#f0eef4', '#7aa06a', '#5c8450', '#7aa06a', 9, 1, { old: 1, bun: 1, o: '#e48f9b', c: '#f4e8ce' }),
+  kai: mk('#2a2420', '#4a3e36', '#6d8aa8', '#56708c', '#4a5a6a', 4, 0), yos: mk('#3a2a20', '#5a4636', '#d8b84a', '#b8983a', '#5a6a8a', 3, 0),
+  ose: mk('#d8d4dc', '#f0eef4', '#9a5a6a', '#7a4252', '#9a5a6a', 9, 1, { old: 1, bun: 1 }), miy: mk('#1f1a2a', '#3a3050', '#d98fa0', '#b8707f', '#d98fa0', 13, 1, { a: '#fff' }),
+  dai: mk('#4a3a2a', '#6a5a44', '#7a6a4a', '#5a4c34', '#4a4a5e', 4, 0, { bd: '#4a3a2a' })
+};
+Object.keys(pl).forEach(k => { P[k] = pl[k]; P[k + 'H'] = { ...pl[k], e: '#0b0610', ey: '#0b0610', sh: pl[k].s }; });
+const FP = { Tsuta: 'tsu', Kaito: 'kai', Yoshi: 'yos', Osen: 'ose', Miyo: 'miy', Daichi: 'dai' }, fp0 = Face.pal.bind(Face);
+Face.pal = w => { const k = FP[w]; return k ? k + (G.fg[k] > 1 ? 'H' : '') : fp0(w); };
+
+/* ---------- retratos 64x64 estilo Omori, com glitch conforme o terror sobe ---------- */
+Face.draw = function (dt, talk) {
+  const p = P[this.pal(this.who)]; if (!p) return;
+  const t = this.t += dt, e = this.emo, c = this.cv.getContext('2d'), dk = e === 'd', big = e === 'x' || e === 'o', lo = p.hl > 9, mo = '#b8505f', h = hz();
+  const r = (col, x, y, w = 1, hh = 1) => { c.fillStyle = col; c.fillRect(x, y, w, hh); };
+  const bg = { h: ['#ffe9b8', '#ffd68a'], s: ['#d5deee', '#b6c4de'], a: ['#f3b1a8', '#d9807a'], x: ['#ddd5ee', '#bfb2dc'], d: ['#2b1523', '#0d0610'] }[e] || ['#fdf6e3', '#f1e2c0'];
+  for (let y = 0; y < 64; y += 4) r(bg[(y >> 2) % 2], 0, y, 64, 4);
+  r('rgba(90,52,32,.25)', 0, 0, 64, 2); r('rgba(90,52,32,.25)', 0, 62, 64, 2);
+  r(p.h, lo ? 9 : 12, 9, lo ? 46 : 40, lo ? 52 : 26); for (let i = 0; i < 9; i++) r(p.h2, 14 + i * 4 + i % 2, 12, 1, lo ? 40 : 16);
+  r(p.t, 6, 52, 52, 12); r(p.t2, 6, 52, 52, 1); r(p.t2, 14, 56, 1, 8); r(p.t2, 49, 56, 1, 8); r(p.c, 22, 51, 20, 5); r('rgba(255,255,255,.3)', 22, 53, 20, 1);
+  r(p.s, 26, 43, 12, 10); r(p.sd, 26, 47, 12, 4); r(p.c, 26, 52, 12, 2);
+  for (let y = 12; y <= 48; y++) { const k = (y - 30) / 18.5, hw = Math.round(15 * Math.sqrt(Math.max(0, 1 - k * k))) + 1; r(p.s, 32 - hw, y, hw * 2, 1); if (y > 22) r(p.sd, 32 + hw - 3, y, 3, 1); r('rgba(255,255,255,.18)', 32 - hw + 2, y, 2, 1); if (y > 44) r('rgba(120,60,50,.15)', 32 - hw, y, hw * 2, 1); }
+  r(p.s, 15, 28, 3, 7); r(p.s, 46, 28, 3, 7); r(p.sd, 16, 30, 1, 4);
+  r(p.sd, 32, 34, 1, 4); r(p.sd, 31, 38, 3, 1); r('rgba(255,255,255,.3)', 32, 33, 1, 2);
+  if (!dk && !big) { r(p.sh, 19, 37, 6, 3); r(p.sh, 39, 37, 6, 3); r('rgba(255,255,255,.2)', 20, 37, 2, 1); }
+  if (p.old) { r(p.sd, 19, 36, 4, 1); r(p.sd, 41, 36, 4, 1); r(p.sd, 22, 15, 20, 1); r(p.sd, 24, 17, 16, 1); }
+  [19, 37].forEach((x, i) => {
+    const [yo, yi] = { h: [21, 21], s: [24, 20], a: [21, 25], x: [19, 19], o: [18, 18] }[e] || [22, 22];
+    for (let k = 0; k < 9; k++) r(p.h, x - 1 + k, Math.round(yo + (yi - yo) * Math.abs(k - (i ? 8 : 0)) / 8), 1, 2);
+    if (dk) { r('#0d0610', x, 24, 8, 7); r('#ff2a2a', x + 3, 27, 2, 2); r('#6a0a14', x + 3, 31, 1, 6 + ((t * 4) | 0) % 3); }
+    else if (e === 'h' && t % 3.7 < 3.55) { r(p.ey, x, 28); r(p.ey, x + 1, 27, 6); r(p.ey, x + 7, 28); }
+    else if (t % 3.7 > 3.55) { r(p.ey, x, 27, 8, 1); r(p.ey, i ? x + 8 : x - 1, 26, 1, 2); }
+    else {
+      const y = big ? 24 : 25, hh = big ? 9 : 8;
+      r('#fff', x, y, 8, hh); r(p.e, x + 1, y + 1, 6, hh - 1); r(p.ey, x + 1, y + 1, 6, 2); r('rgba(255,255,255,.3)', x + 2, y + hh - 2, 4, 1);
+      r(p.ey, x + 3, y + 3, 2, hh - 4); r('#fff', x + 2, y + 2, 2, 2); r('#e3f4ff', x + 5, y + hh - 3);
+      r(p.ey, x - 1, y - 1, 10, 1); r(p.ey, i ? x + 8 : x - 1, y, 1, 2); r(p.sd, x, y + hh, 8, 1);
+      if (e === 's') { r(p.s, x, y, 8, 1); r('#8fd0ff', x + (i ? 7 : 0), y + hh, 1, 3 + ((t * 3) | 0) % 2); }
+      if (e === 'a') r(p.s, x + (i ? 0 : 4), y, 4, 1);
+      if (h > .6 && Math.sin(t * 3 + i) > .8) r(p.ey, x + 2, y + 2, 4, hh - 3); // pupilas dilatam no terror
+    }
+  });
+  if (e === 'x') r('#8fd0ff', 49, 18, 2, 5);
+  if (p.bd) { r(p.bd, 20, 40, 24, 12); r(p.bd, 23, 37, 18, 3); }
+  if (dk) { r('#0d0610', 25, 43, 14, 5); for (let k = 25; k < 39; k += 2) r('#e8e0d0', k, 43, 1, 3); }
+  else if (talk && Math.sin(t * 16) > 0) { r('#6a2a3a', 28, 43, 8, 4); r(mo, 29, 46, 6, 1); r('#d86a7a', 29, 43, 6, 1); }
+  else if (e === 'a') { r('#2a1a20', 26, 44, 12, 2); r('#fff', 27, 44, 10, 1); }
+  else if (big) r('#6a2a3a', 30, 43, 4, 4);
+  else if (e === 'h') { r(mo, 26, 43); r(mo, 27, 44, 10); r(mo, 37, 43); r('#fff', 29, 44, 6, 1); }
+  else if (e === 's') { r(mo, 28, 44, 8); r(mo, 27, 45); r(mo, 36, 45); }
+  else { r(mo, 29, 44, 6); r('#e89aa4', 30, 45, 4, 1); }
+  r(p.h, 13, 9, 38, 10); for (let k = 0; k < 8; k++) r(p.h, 15 + k * 4, 18, 3, 2 + k % 3 * 2);
+  r(p.h, 12, 14, 5, 18); r(p.h, 47, 14, 5, 18); r(p.h2, 18, 11, 10, 1); r(p.h2, 34, 12, 8, 1); r(p.h2, 16, 15, 2, 5); r(p.h2, 44, 14, 2, 6); r('rgba(255,255,255,.18)', 20, 10, 24, 1);
+  if (lo) { r(p.h, 10, 18, 6, 40 + Math.round(Math.sin(t * 2))); r(p.h, 48, 18, 6, 40 - Math.round(Math.sin(t * 2))); }
+  if (p.bun) { r(p.h, 24, 3, 16, 9); r(p.h2, 27, 4, 6, 2); }
+  if (p.a) { r(p.a, 40, 9, 9, 5); r(p.a, 42, 7, 5, 9); r('#5a7ad8', 44, 10, 2, 3); }
+  if (h > .5 && Math.random() < h * .05) { const y = Math.random() * 56 | 0; c.drawImage(this.cv, 0, y, 64, 4, (Math.random() * 7 | 0) - 3, y, 64, 4); }
+  r('rgba(0,0,0,.2)', 0, 0, 1, 64); r('rgba(0,0,0,.2)', 63, 0, 1, 64);
+};
+
+/* ---------- desenhos novos (reaproveitam o minigame de Draw) ---------- */
+Object.assign(Draw.S, {
+  c0: { t: 'Regar as camélias', pts: [[60, 150, 1], [60, 60], [110, 150], [110, 60], [160, 150], [160, 60], [210, 150], [210, 60], [260, 150]] },
+  c1: { t: 'Espalhar o adubo', pts: [[160, 95, 1], [190, 95], [190, 125], [130, 125], [130, 65], [220, 65], [220, 155], [100, 155]] },
+  c2: { t: 'Podar as pontas secas', pts: [[50, 150, 1], [90, 60], [130, 150], [170, 60], [210, 150], [250, 60]] },
+  c3: { t: 'Replantar a muda', pts: [[160, 160, 1], [160, 100], [120, 70], [160, 50], [200, 70], [160, 100], [100, 160, 1], [220, 160]] },
+  ret: { t: 'Retrato', pts: [[160, 36, 1], [128, 56], [122, 96], [140, 136], [160, 146], [180, 136], [198, 96], [192, 56], [160, 36], [140, 84, 1], [150, 84], [170, 84, 1], [180, 84], [152, 114, 1], [168, 114]] },
+  pesca: { t: 'Pescaria', pts: [[40, 60, 1], [100, 110], [160, 70], [220, 120], [280, 80], [280, 150, 1], [220, 150], [160, 150]] },
+  guir: { t: 'Guirlanda', pts: [[160, 40, 1], [200, 56], [216, 96], [200, 136], [160, 152], [120, 136], [104, 96], [120, 56], [160, 40]] },
+  lant: { t: 'Lanterna', pts: [[130, 50, 1], [190, 50], [200, 100], [190, 150], [130, 150], [120, 100], [130, 50], [160, 150, 1], [160, 176]] }
+});
+const ds = Draw.start, dd = Draw.draw;
+Draw.start = function (k, cb) { this.kind = /^c\d$/.test(k); ds.call(this, k, cb); };
+Draw.draw = function (g) { dd.call(this, g); if (this.kind) { g.globalCompositeOperation = 'multiply'; g.fillStyle = '#bfe8c4'; g.fillRect(12, 8, 296, 176); g.globalCompositeOperation = 'source-over'; } };
+
+/* ---------- vasos que murcham, Tsuta, figurantes ---------- */
+const ao = Art.obj;
+Art.obj = (g, t, x, y) => {
+  if (t !== 'pot') return ao(g, t, x, y);
+  const w = G.ch >= 8 ? 2 : G.ch >= 6 ? 1 : 0, c = ['#4f9a58', '#8a9a50', '#4a3a30'][w], f = ['#f06a9c', '#c88a8a', '#2a2438'][w], q = (col, a, b, ww, hh) => rc(g, col, x + a, y + b, ww, hh);
+  q('#a06a48', 4, 9, 8, 7); q('#c88a60', 3, 8, 10, 2); q('#6e4a34', 4, 15, 8, 1); q(c, 7, w > 1 ? 5 : 2, 2, w > 1 ? 4 : 7); q(c, 4, 4 + w * 2, 4, 2); q(c, 9, 3 + w * 3, 4, 2); q(f, 5, w > 1 ? 4 : 0, 6, 3); if (!w) q('#fff4a8', 7, 1, 2, 1);
+};
+World.maps.vila.objs.push(...[16, 17, 21, 22].map(x => ({ t: 'pot', x, y: 11, talk: G => [['', G.ch >= 8 ? 'As folhas estão negras e quebradiças. Ninguém regou, e mesmo assim parecem ter secado de dentro para fora.' : 'Camélias bem cuidadas.']] })));
+const FG = [['kai', 'Kaito', 35, 15, 2, 'Hm. Os peixes não mordem hoje. Estão quietos demais.', 'Você me desenhou? Ficou melhor que o original.'],
+  ['yos', 'Yoshi', 14, 15, 0, 'Quer ver meu besouro? Ele se chama General.', 'Meu retrato! Vou mostrar para o General!'],
+  ['ose', 'Osen', 12, 10, 3, 'Compre um doce de feijão, menina. Estão fresquinhos de ontem.', 'Estou tão bonita assim? Mentirosa.'],
+  ['miy', 'Miyo', 28, 15, 2, 'Eu bordo à tarde. A luz daqui é a melhor da vila.', 'Guardei o retrato junto das minhas linhas.'],
+  ['dai', 'Daichi', 6, 14, 0, 'Cortei lenha o dia todo. Agora só quero silêncio.', 'Parece que me olho no espelho... e o espelho me olha de volta.']];
+const figs = () => FG.map(([id, nm, x, y, d, a, b]) => ({ ...P2(x, y), dir: d, get pal() { return id + (G.fg[id] > 1 ? 'H' : ''); }, on: G => (G.fg[id] | 0) < 3,
+  talk: G => G.fg[id] > 1 ? [[nm, 'Você me pintou... e agora meu nome escorre da minha cabeça.', 'd']] : [[nm, G.fg[id] ? b : a, G.fg[id] ? 'h' : 'n']],
+  after: G => { if (G.ch >= 3 && !G.fg[id]) dr('ret', () => { G.fg[id] = 1; Dialogue.start([kh('Pronto. Guardei o rosto no papel.', 'n')], adv); }, nm); } }));
+const tsuta = () => ({ ...P2(19, 11), dir: 0, get pal() { return 'tsu' + (G.fg.tsu > 1 ? 'H' : ''); }, on: G => (G.fg.tsu | 0) < 3,
+  talk: G => { const n = cnt('fc', 4); return G.ch < 2 ? [['Tsuta', 'Hoje as mãos estão pesadas. Volte quando o dia estiver mais claro, menina.', 'n']] : G.fg.tsu > 1 ? [['Tsuta', 'As camélias... quem vai regá-las?', 'd']] : n >= 4 ? [['Tsuta', 'O jardim nunca esteve tão vivo. Obrigada, pequena.', 'h']]
+    : [['Tsuta', ['Primeiro, rega as camélias. Devagar, sem molhar as folhas.', 'Agora o adubo. Segue a trilha do pó, como quem escreve.', 'Poda as pontas secas, sem pressa.', 'Por último, replanta a muda da Hana no vaso novo.'][n], 'n']]; },
+  after: G => { const n = cnt('fc', 4); if (G.ch < 2 || n >= 4 || G.fg.tsu > 1) return;
+    dr('c' + n, () => { G.seen['fc' + (n + 1)] = 1; const last = cnt('fc', 4) >= 4; if (last) G.seen.fb = 1;
+      Dialogue.start([['Tsuta', ['Assim mesmo.', 'Boa mão. Você pinta, né? Dá para ver.', 'As raízes agradecem.', 'Pronto. Agora o jardim tem dono outra vez.'][n], 'h']], last ? () => dr('ret', () => { G.fg.tsu = 1; adv(); }, 'Tsuta') : adv); }); } });
+function patch() {
+  const v = World.maps.vila; v.npcs.push(tsuta(), ...figs());
+  const sumi = v.npcs.find(n => n.pal === 'sumi'), ge = v.npcs.find(n => n.pal === 'genji');
+  sumi.talk = G => G.met.sumi ? [['Sumi', 'Papel de arroz, nanquim, pincéis... Quando precisar, é só passar aqui.', 'n']] : [['Sumi', 'Hm. Então é você, a moça nova. Anda olhando tudo como quem conta cada tábua.', 'o'], kh('É um hábito. Desculpe.', 'n'), ['Sumi', 'Leve estes pincéis. Estão parados há anos. Pincel sem mão é só pau.', 'n'], kh('Obrigada, dona Sumi.', 'h')];
+  ge.talk = G => G.met.genji ? [['Genji', 'O bosque se cala quando algo vai mal. Preste atenção no canto dos pássaros, moça.', 'n']] : [['Genji', 'Então é você, a moça da casa velha. Anda devagar, como quem escuta o chão.', 'n'], kh('Escuto mesmo. Aqui é tão quieto.', 'n'), ['Genji', 'A vila é pequena. Aqui, até as pedras têm memória.', 'n'], ['Genji', 'Meu avô dizia que no bosque vive um cervo muito velho, e que os pássaros se calam antes de coisas ruins.', 'n']];
+}
+const rs = World.reset; World.reset = () => { rs(); patch(); }; patch();
+const ng = newGame; newGame = function () { G.fg = {}; ng(); };
+
+/* ---------- tempo com os amigos e tarefas obrigatórias ---------- */
+L.ren[2] = [[Re('Koharu! Vem pescar comigo! A Hana diz que eu não pego nem uma folha.', 'h'), kh('Só um pouquinho, então.', 'h')], 'ph1', () => dr('pesca', () => Dialogue.start([Re('PEGUEI! ...É uma bota. Mas conta!', 'h'), kh('Conta como peixe, sim.', 'h')], adv))];
+L.hana[2] = [[Ha('Koharu! Me ajuda a trançar guirlandas? É para a feira do fim do mês!', 'h'), kh('Se eu não estragar tudo...', 'n')], 'ph2', () => dr('guir', () => Dialogue.start([Ha('Ficou torta. Ficou perfeita!', 'h'), Ha('É bom ter alguém para fazer isso junto.', 'h')], adv))];
+L.hana[5] = [[Ha('Koharu, vem! Levei bolinhos de arroz para debaixo da cerejeira. Faz tempo que a gente não senta junto.', 'h'), kh('Faz tempo mesmo.', 'n')], 'ph5', () => Dialogue.start([nar('Estenderam um pano sob a cerejeira. As pétalas caíam devagar.'), Ha('Você reparou? Os pássaros não voltaram.', 's'), kh('Reparei. Vai passar.', 's'), nar('Ficaram em silêncio até o sol baixar. Nenhum canto, nem de longe.')], adv)];
+L.hana[7] = [[Ha('Hoje é a noite das lanternas. Acende uma comigo?', 'h'), kh('Acendo.', 'h')], 'ph7', () => { G.tint = 'rgba(255,150,70,.22)'; dr('lant', () => Dialogue.start([Ha('Cada lanterna leva um desejo. O meu é que ninguém mais suma.', 's'), nar('A chama da lanterna dela apagou sozinha, sem vento.')], () => { G.tint = null; adv(); })); }];
+L.ren[8] = [[Re('Vamos brincar de esconde-esconde? Faz tempo que ninguém brinca comigo...', 's'), kh('Só uma rodada.', 'n')], 'ph8', () => { Sfx.whisper(); Cut.fx('shake', 300); Dialogue.start([Re('Contei até dez e olhei em volta... as casas estavam vazias.', 'x'), Re('Achei você, Koharu. Você não some, né?', 's'), kh('...Eu fico aqui.', 's')], adv); }];
+STEPS[5].push(['ph5', 'fazer um piquenique com a Hana']); STEPS[6].push(['fb', () => `ajudar a dona Tsuta na floricultura (${cnt('fc', 4)}/4)`]);
+STEPS[7].push(['ph7', 'ver as lanternas com a Hana']); STEPS[8].push(['ph8', 'brincar com o Ren']);
+const ob = objective; objective = function () {
+  ob(); const q = []; if (G.ch >= 2 && G.ch < 6 && cnt('fc', 4) < 4) q.push('floricultura da dona Tsuta'); if (G.ch === 2) { if (!G.seen.ph1) q.push('pescar com o Ren'); if (!G.seen.ph2) q.push('guirlandas com a Hana'); }
+  if (q.length) $('hud').textContent += ' · Extra: ' + q.join(', ');
+};
+
+/* ---------- terror progressivo + figurantes afetados a cada capítulo ---------- */
+const sp = Ambient.spawn; Ambient.spawn = function () { sp.call(this); this.next *= 1 - hz() * .6; };
+const vg2 = g.createRadialGradient(W / 2, H / 2, H * .25, W / 2, H / 2, W * .62); vg2.addColorStop(0, 'rgba(0,0,0,0)'); vg2.addColorStop(1, 'rgba(8,0,12,1)');
+let lc = -1; const rn = render;
+render = function () {
+  if (G.ch !== lc) { if (lc >= 0 && G.ch > 5) Object.keys(G.fg).forEach(k => { if (G.fg[k] > 0 && G.fg[k] < 3) G.fg[k]++; }); lc = G.ch; }
+  rn(); const h = hz(); cv.style.filter = h ? `saturate(${1 - h * .75}) contrast(${1 + h * .25}) brightness(${1 - h * .12 + (Math.random() < h * .02 ? -.35 : 0)})` : '';
+  if (!h || G.mode === 'draw') return;
+  g.globalAlpha = h * .7; g.fillStyle = vg2; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  const t = Ambient.t; if (h > .45 && !G.map.indoor) { const k = Math.floor(t / 2.5); for (let i = 0; i < 3; i++) { const x = (k * 97 + i * 131) % 300 + 10, y = (k * 53 + i * 71) % 170 + 10; if (Math.hypot(x - W / 2, y - H / 2) > 95 && t % 2.5 < 1.6) { rc(g, '#e8e0d0', x, y, 2, 1); rc(g, '#e8e0d0', x + 5, y, 2, 1); } } }
+  if (h > .75) rc(g, `rgba(120,0,20,${(h - .7) * .25})`, 0, 0, W, H);
+  if (Math.random() < h * .03) { const y = Math.random() * 180 | 0; g.drawImage(cv, 0, y, W, 6, (Math.random() * 8 | 0) - 4, y, W, 6); }
+};
+})();
+
+
+/* ===== kessai-plus2 ===== */
+(() => {
+/* ---------- 1) tiles com mais detalhe (relva, trilha, água, telhado, madeira, copas) ---------- */
+let sd = 11; const ri = n => (sd = sd * 16807 % 2147483647) / 2147483647 * n | 0, tc = k => Art.tiles[k] && Art.tiles[k].getContext('2d'), q = (c, col, x, y, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+['.', 'f'].forEach(k => { const c = tc(k); for (let i = 0; i < 9; i++) { const x = ri(14) + 1, y = ri(11) + 3; q(c, '#6f9a64', x, y, 1, 2); q(c, '#b5d19b', x + 1, y - 1); } q(c, 'rgba(60,90,60,.15)', ri(8), ri(8) + 8, 6, 2); });
+(c => { for (let i = 0; i < 6; i++) { const x = ri(13), y = ri(14); q(c, '#c9ae82', x, y + 1, 3, 1); q(c, '#f6ead0', x, y, 2, 1); } })(tc(','));
+(c => { q(c, '#7aa3ba', 0, 13, 16, 3); for (let i = 0; i < 4; i++) { const x = ri(11), y = i * 4; q(c, '#d8edf5', x, y, 4, 1); q(c, '#eaf6fb', x + 1, y - 1, 2, 1); } q(c, '#a9cbdc', ri(10), 8, 5, 1); })(tc('~'));
+(c => { for (let y = 0; y < 16; y += 4) { q(c, '#4a586e', 0, y + 3, 16, 1); q(c, '#a6b6cb', 1, y, 14, 1); } q(c, '#7d9a74', 3, 5, 2, 1); q(c, '#7d9a74', 11, 13, 2, 1); })(tc('R'));
+(c => { for (let x = 0; x < 16; x += 5) { q(c, '#5a3a28', x, 2, 1, 14); q(c, '#b88c68', x + 2, 4, 1, 8); q(c, '#3a2418', x + 1, 6); q(c, '#3a2418', x + 1, 12); } q(c, '#5a3a28', 0, 15, 16); })(tc('#'));
+[['T', '#6f9a64', '#9fcf8c', '#4f7a48'], ['K', '#f2b7c4', '#fde4ea', '#d98fa0'], ['Y', '#3f6b4a', '#6ea072', '#2a4a34']].forEach(([k, a, b, d]) => { const c = tc(k + 'c'); c.clearRect(0, 0, 16, 16); q(c, d, 1, 4, 14, 8); q(c, d, 3, 2, 10, 11); q(c, a, 1, 1, 14, 8); q(c, a, 3, 0, 10, 10); q(c, b, 3, 1, 5, 3); q(c, b, 9, 4, 4, 2); q(c, b, 2, 5, 3, 2); for (let i = 0; i < 10; i++) q(c, i % 2 ? d : b, ri(13) + 1, ri(10) + 1); });
+
+/* ---------- 2) a mãe só aparece na introdução e no final ---------- */
+const M = World.maps, ob = (m, f) => M[m].objs.find(f);
+const ea = ob('casa', o => o.t === 'easel'), e0 = ea.talk; ea.talk = G => G.ch >= 3 && G.ch < 12 && G.ch !== 9 ? [kh('O cavalete da casa. O papel ainda me espera.', 'n')] : e0(G);
+const ch = ob('casa', o => o.t === 'chest'), c0 = ch.talk; ch.talk = G => G.ch > 1 ? [kh(G.ch === 9 && G.seen.h9 ? 'Estou exausta... Vou me deitar um pouco.' : 'O baú de pincéis e tintas. Cartas amarradas com barbante, que ainda não consigo abrir.', 's')] : c0(G);
+const qd = ob('casa', o => o.k === 'quadro'), q0 = qd.text; qd.talk = G => G.ch > 1 ? [kh('Uma ponte sobre um rio.', 'n'), kh('A mancha escura no canto parece maior do que antes.', 'x')] : q0;
+const cad = ob('galeria', o => o.k === 'cad'); cad.text = [nar('O caderno da gueixa: ela acreditava poder falar com os mortos por uma sequência de imagens.'), nar('Começou pelos vivos: animais, flores, árvores. Cada desaparecimento abriria um caminho entre os dois lados.'), nar('Ela confundiu preservar a memória com impedir a perda. Na margem, outra caligrafia, mais recente: instruções para quem viesse depois.'), kh('Alguém seguiu este caderno à risca.', 's')];
+const gs = ob('galeria', o => o.k === 'gs'); gs.talk = G => G.ch === 11 ? [nar('O rosto do retrato inacabado agora está nítido.'), kh('...É o rosto da mamãe.', 's')] : [nar('Num canto separado, o retrato inacabado de uma mulher sem rosto.'), kh('Falta só um pedaço.', 's')];
+Scenes.arvore = async () => {
+  G.tr = 3; Sfx.whisper(); Cut.fx('shake', 600); await Cut.wait(1.2);
+  await Cut.say([nar('A árvore antiga desapareceu. Restou um círculo de terra escura e um sussurro mais nítido que nunca.'), Re('A árvore sumiu! Koharu, olha! Tem uma caixa no meio da terra!', 'x'), nar('Na caixa, uma fotografia antiga de uma gueixa e uma anotação: "Mulher que tentou encontrar a filha por meio da arte."'), kh('Esta caligrafia... eu já vi essa mão em algum lugar.', 'x')]);
+  G.ch = 8; await Cut.card(['Fim do Capítulo 3.', 'Capítulo 4 — A lenda da mulher sem nome'], 1.4);
+};
+Scenes.sonho = async () => {
+  await Cut.fade(1, 1.4); await Cut.card(['Uma mulher de quimono está sentada diante de uma pintura inacabada.', 'Ela não se vira.'], 1); await Cut.fade(0, 1.4);
+  await Cut.say([kh('Quem é você...?', 'x'), nar('Entre os papéis da casa, uma carta sem assinatura.'), nar('"Quando a última imagem desaparecer, você poderá me ver mais uma vez."'), kh('Essa carta foi escrita para alguém que ia continuar pintando.', 'x')]);
+  G.ch = 10; await Cut.card(['Fim do Capítulo 5.', 'Capítulo 6 — A galeria escondida'], 1.4);
+};
+Scenes.galeria = async () => {
+  await Cut.say([Re('Koharu... esse é o rosto da dona Sumi. E aquela é a árvore do santuário.', 's'), Ha('Você sabia, não é? Desde o começo.', 's'), kh('Eu... não sei como explicar.', 'x'), nar('Quem estudou a história da gueixa deixou instruções. Falta só a última peça.'), kh('Preciso terminar o quadro. Sozinha.', 's')]);
+  G.ch = 11; await Cut.card(['Fim do Capítulo 6.', 'Capítulo Final — A última pintura'], 1.4);
+};
+END[7] = Scenes.arvore; END[9] = Scenes.sonho; END[10] = Scenes.galeria;
+
+/* ---------- 3) terror psicológico: o chá, e a praça à noite ---------- */
+const NM = { kai: 'Kaito', yos: 'Yoshi', ose: 'Osen', miy: 'Miyo', dai: 'Daichi', tsu: 'Tsuta' };
+Scenes.espelho = async () => {
+  G.seen.esp = 1; const gone = Object.keys(G.fg).filter(k => G.fg[k] >= 2 && NM[k]).map(k => NM[k]);
+  await Cut.say([kh('O chá está mostrando o meu rosto. Sem olhos.', 'x')]); Sfx.whisper(); Cut.fx('shake', 500); await Cut.wait(.8);
+  await Cut.say([nar(gone.length ? `Atrás do reflexo, ela vê rostos que conhece: ${gone.join(', ')}.` : 'Atrás do reflexo, há espaço para mais rostos.'), nar('Todos olham para ela com olhos pretos. Todos esperam ser lembrados.'), kh('Eu pintei vocês. Eu pintei todos vocês.', 'x')]);
+  await Cut.fade(1, .8); Sfx.whisper(); await Cut.wait(.8); await Cut.fade(0, 1.2);
+  await Cut.say([kh('A xícara está vazia. O chá nunca esteve ali.', 's')]);
+};
+Scenes.ronda = async () => {
+  await Cut.fade(1, 1); await Cut.card(['Noite.', 'Os moradores estão parados na praça.', 'Todos olham na mesma direção.'], 1); G.tint = 'rgba(20,10,50,.35)'; await Cut.fade(0, 1.2);
+  await Cut.say([Ha('Faz uma hora que estão assim. Ninguém responde quando eu chamo.', 'x'), Re('Eles não piscam, Koharu.', 'x'), nar('Os poucos que restam na vila viram a cabeça ao mesmo tempo, de olhos pretos.'), Ha('Eles estão olhando para você.', 'x')]);
+  Sfx.whisper(); Cut.fx('red', 700); Cut.fx('shake', 700); await Cut.wait(1);
+  await Cut.say([nar('Em uníssono, sem mover os lábios, uma voz sai de todos eles:'), nar('"Pinte-nos de novo."'), kh('...Não.', 'x'), kh('Eu não vou pintar mais ninguém.', 's')]);
+  await Cut.fade(1, 1); await Cut.wait(.8); await Cut.fade(0, 1.2);
+};
+const tb = ob('casa', o => o.t === 'table'), t0 = tb.text; tb.talk = G => G.ch === 9 ? [kh('O chá esfriou de novo. A superfície está parada demais.', 'x')] : t0; tb.after = G => { if (G.ch === 9 && !G.seen.esp) Cut.play(Scenes.espelho, adv); };
+L.hana[10] = [[Ha('Koharu... vem comigo até a praça. Por favor. Eu preciso que você veja uma coisa.', 's')], 'hr', () => Cut.play(Scenes.ronda, adv)];
+STEPS[9].push(['esp', 'olhar o chá esquecido na mesa']); STEPS[10].push(['hr', 'acompanhar a Hana até a praça, à noite']);
+})();
+
 </script>
 </body></html>
