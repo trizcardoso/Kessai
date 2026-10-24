@@ -927,53 +927,106 @@ const FP = { Tsuta: 'tsu', Kaito: 'kai', Yoshi: 'yos', Osen: 'ose', Miyo: 'miy',
 Face.pal = w => { const k = FP[w]; return k ? k + (G.fg[k] > 1 ? 'H' : '') : fp0(w); };
 
 /* ---------- retratos 64x64 estilo Omori, com glitch conforme o terror sobe ---------- */
+/* ---------- estilos individuais: formato do rosto, olhos, sobrancelhas, franja e detalhes ---------- */
+// rx/ry: metade da largura/altura do rosto · ew/eh: tamanho dos olhos · bt: espessura da sobrancelha · lid: pálpebra caída
+// sq: mandíbula quadrada · bg: mechas da franja [x, largura, altura] · up: mechas para cima · soft/thin/smirk: tipo de boca · fx: detalhe
+const FS = {
+  def: { rx: 14, ry: 18, ew: 3, eh: 4, bt: 1, lid: 0, sq: 0, bg: [[18, 7, 7], [25, 7, 6], [32, 7, 7], [39, 7, 6]], up: [], fx: '' },
+  koharu: { rx: 14, ry: 18, eh: 4, bg: [[18, 7, 10], [24, 6, 7], [30, 3, 4], [33, 6, 8], [39, 7, 10]], fx: 'pin', soft: 1 },
+  sayuri: { rx: 14, ry: 18, eh: 4, lid: 1, bg: [[18, 8, 10], [26, 4, 3], [34, 4, 3], [38, 8, 10]], soft: 1 },
+  hana: { rx: 15, ry: 17, eh: 4, bg: [[17, 6, 6], [22, 6, 8], [28, 6, 5], [33, 6, 8], [39, 7, 6]] },
+  ren: { rx: 15, ry: 16, eh: 3, bt: 2, bg: [[17, 5, 7], [22, 5, 4], [27, 5, 8], [32, 5, 4], [37, 5, 8], [42, 5, 5]], up: [[20, 6, 7], [28, 6, 9], [36, 6, 7]], fx: 'plaster', smirk: 1 },
+  tsu: { rx: 13, ry: 18, eh: 2, lid: 1, bg: [[19, 10, 5], [29, 6, 3], [35, 10, 5]], thin: 1 },
+  ose: { rx: 14, ry: 17, eh: 2, lid: 1, bg: [[18, 8, 6], [26, 12, 3], [38, 8, 6]], thin: 1 },
+  sumi: { rx: 13, ry: 18, eh: 2, lid: 2, bg: [[19, 8, 6], [27, 10, 2], [37, 8, 6]], thin: 1 },
+  genji: { rx: 14, ry: 19, eh: 2, bt: 2, lid: 1, bg: [[18, 4, 4], [42, 4, 4]], thin: 1 },
+  take: { rx: 15, ry: 18, eh: 3, bt: 2, sq: 6, bg: [[17, 6, 7], [22, 5, 4], [27, 6, 8], [33, 5, 5], [38, 6, 8], [43, 4, 5]], fx: 'stubble' },
+  kai: { rx: 14, ry: 17, eh: 3, bg: [[17, 6, 6], [23, 6, 4], [29, 6, 6], [35, 6, 4], [41, 5, 6]] },
+  yos: { rx: 15, ry: 16, eh: 4, bg: [[17, 8, 5], [25, 6, 3], [31, 8, 6], [39, 7, 4]], smirk: 1 },
+  miy: { rx: 14, ry: 17, eh: 4, bg: [[17, 8, 8], [25, 6, 4], [31, 6, 4], [37, 8, 8]], soft: 1 },
+  dai: { rx: 16, ry: 17, eh: 3, bt: 2, sq: 6, bg: [[16, 7, 5], [23, 7, 3], [30, 7, 5], [37, 8, 3]] }
+};
+const EX = { n: [0, 0], h: [-1, -1], s: [2, -2], a: [-1, 3], x: [-3, -3], o: [-4, -4], w: [1, -2], d: [-1, 3] }; // sobrancelha [ponta externa, ponta interna]
+
 Face.draw = function (dt, talk) {
-  const p = P[this.pal(this.who)]; if (!p) return;
-  const t = this.t += dt, e = this.emo, c = this.cv.getContext('2d'), dk = e === 'd', big = e === 'x' || e === 'o', lo = p.hl > 9, mo = '#b8505f', h = hz();
-  const r = (col, x, y, w = 1, hh = 1) => { c.fillStyle = col; c.fillRect(x, y, w, hh); };
-  const bg = { h: ['#ffe9b8', '#ffd68a'], s: ['#d5deee', '#b6c4de'], a: ['#f3b1a8', '#d9807a'], x: ['#ddd5ee', '#bfb2dc'], d: ['#2b1523', '#0d0610'] }[e] || ['#fdf6e3', '#f1e2c0'];
-  for (let y = 0; y < 64; y += 4) r(bg[(y >> 2) % 2], 0, y, 64, 4);
-  r('rgba(90,52,32,.25)', 0, 0, 64, 2); r('rgba(90,52,32,.25)', 0, 62, 64, 2);
-  r(p.h, lo ? 9 : 12, 9, lo ? 46 : 40, lo ? 52 : 26); for (let i = 0; i < 9; i++) r(p.h2, 14 + i * 4 + i % 2, 12, 1, lo ? 40 : 16);
-  r(p.t, 6, 52, 52, 12); r(p.t2, 6, 52, 52, 1); r(p.t2, 14, 56, 1, 8); r(p.t2, 49, 56, 1, 8); r(p.c, 22, 51, 20, 5); r('rgba(255,255,255,.3)', 22, 53, 20, 1);
-  r(p.s, 26, 43, 12, 10); r(p.sd, 26, 47, 12, 4); r(p.c, 26, 52, 12, 2);
-  for (let y = 12; y <= 48; y++) { const k = (y - 30) / 18.5, hw = Math.round(15 * Math.sqrt(Math.max(0, 1 - k * k))) + 1; r(p.s, 32 - hw, y, hw * 2, 1); if (y > 22) r(p.sd, 32 + hw - 3, y, 3, 1); r('rgba(255,255,255,.18)', 32 - hw + 2, y, 2, 1); if (y > 44) r('rgba(120,60,50,.15)', 32 - hw, y, hw * 2, 1); }
-  r(p.s, 15, 28, 3, 7); r(p.s, 46, 28, 3, 7); r(p.sd, 16, 30, 1, 4);
-  r(p.sd, 32, 34, 1, 4); r(p.sd, 31, 38, 3, 1); r('rgba(255,255,255,.3)', 32, 33, 1, 2);
-  if (!dk && !big) { r(p.sh, 19, 37, 6, 3); r(p.sh, 39, 37, 6, 3); r('rgba(255,255,255,.2)', 20, 37, 2, 1); }
-  if (p.old) { r(p.sd, 19, 36, 4, 1); r(p.sd, 41, 36, 4, 1); r(p.sd, 22, 15, 20, 1); r(p.sd, 24, 17, 16, 1); }
-  [19, 37].forEach((x, i) => {
-    const [yo, yi] = { h: [21, 21], s: [24, 20], a: [21, 25], x: [19, 19], o: [18, 18] }[e] || [22, 22];
-    for (let k = 0; k < 9; k++) r(p.h, x - 1 + k, Math.round(yo + (yi - yo) * Math.abs(k - (i ? 8 : 0)) / 8), 1, 2);
-    if (dk) { r('#0d0610', x, 24, 8, 7); r('#ff2a2a', x + 3, 27, 2, 2); r('#6a0a14', x + 3, 31, 1, 6 + ((t * 4) | 0) % 3); }
-    else if (e === 'h' && t % 3.7 < 3.55) { r(p.ey, x, 28); r(p.ey, x + 1, 27, 6); r(p.ey, x + 7, 28); }
-    else if (t % 3.7 > 3.55) { r(p.ey, x, 27, 8, 1); r(p.ey, i ? x + 8 : x - 1, 26, 1, 2); }
+  const key = this.pal(this.who), p = P[key]; if (!p) return;
+  const s = { ...FS.def, ...FS[key.replace(/^take\d/, 'take').replace(/H$/, '')] }, rx = s.rx, top = 30 - s.ry;
+  const t = this.t += dt, e = this.emo, c = this.cv.getContext('2d'), dk = e === 'd', big = e === 'x' || e === 'o', lo = p.hl > 9, h = hz();
+  const sk = dk ? '#cdbfd0' : p.s, sdk = dk ? '#a99bb0' : p.sd, mo = '#b8505f', dm = '#6a2a3a', ln = dk ? '#0d0610' : '#24161c';
+  const B = Array.from({ length: 64 }, () => Array(64).fill(null));
+  const px = (x, y, k) => { if (x >= 0 && y >= 0 && x < 64 && y < 64) B[y][x] = k; };
+  const R = (k, x, y, w = 1, hh = 1) => { for (let j = y; j < y + hh; j++) for (let i = x; i < x + w; i++) px(i, j, k); };
+  const E = (cx, cy, ax, ay, k) => { for (let y = cy - ay; y <= cy + ay; y++) for (let x = cx - ax; x <= cx + ax; x++) { const u = (x - cx) / (ax + .5), v = (y - cy) / (ay + .5); if (u * u + v * v <= 1) px(x, y, k); } };
+  const Sp = (x, y, w, hh, k, up) => { for (let i = 0; i < hh; i++) { const ww = Math.max(1, Math.round(w * (hh - i) / hh)); R(k, x + ((w - ww) >> 1), up ? y - i : y + i, ww); } };
+  // fundo (muda com a emoção)
+  const bg = { h: ['#ffe9b8', '#ffd68a'], s: ['#d5deee', '#b6c4de'], a: ['#f3b1a8', '#d9807a'], x: ['#ddd5ee', '#bfb2dc'], d: ['#2b1523', '#0d0610'], w: ['#e3dcc8', '#cfc6ae'] }[e] || ['#fdf6e3', '#f1e2c0'];
+  for (let y = 0; y < 64; y += 4) { c.fillStyle = bg[(y >> 2) % 2]; c.fillRect(0, y, 64, 4); }
+  c.fillStyle = 'rgba(90,52,32,.25)'; c.fillRect(0, 0, 64, 2); c.fillRect(0, 62, 64, 2);
+  // roupa, pescoço e gola
+  R(p.t, 12, 52, 40, 2); R(p.t, 6, 54, 52, 10); R(p.t2, 6, 54, 52, 1); R(p.t2, 14, 58, 1, 6); R(p.t2, 49, 58, 1, 6);
+  R(sk, 26, 43, 12, 10); R(sdk, 26, 47, 12, 4); R(p.c, 24, 51, 16, 2); R(p.c, 26, 53, 12, 1); R(p.c, 29, 54, 6, 1);
+  // cabelo de trás
+  E(32, 25, rx + 2, 17, p.h); s.up.forEach(u => Sp(u[0], top + 2, u[1], u[2], p.h, 1));
+  if (lo) { const sw = Math.round(Math.sin(t * 2)); R(p.h, 32 - rx - 3, 24, 5, 38 + sw); R(p.h, 32 + rx - 1, 24, 5, 38 - sw); R(p.h2, 32 - rx - 2, 30, 1, 20); R(p.h2, 32 + rx + 2, 34, 1, 18); }
+  if (p.bun) { E(32, 7, 7, 5, p.h); R(p.h2, 28, 5, 5, 1); }
+  // rosto: orelhas, mandíbula, oval
+  R(sk, 32 - rx - 1, 27, 2, 6); R(sk, 32 + rx, 27, 2, 6); R(sdk, 32 - rx, 29, 1, 3);
+  if (s.sq) R(sk, 32 - rx + 1, 36, 2 * rx - 1, s.sq + 2);
+  E(32, 30, rx, s.ry, sk);
+  if (s.fx === 'stubble') for (let y = 39; y < 48; y++) for (let x = 20; x < 45; x++) if ((x * 3 + y * 5) % 4 === 0 && B[y][x] === sk) px(x, y, sdk);
+  if (p.old) { R(sdk, 19, 36, 4, 1); R(sdk, 41, 36, 4, 1); R(sdk, 25, 20, 14, 1); R(sdk, 26, 40, 1, 3); R(sdk, 37, 40, 1, 3); }
+  for (let y = 1; y < 64; y++) for (let x = 0; x < 64; x++) if (B[y][x] === sk && (x >= 32 + rx - 3 || y >= 30 + s.ry - 2 || B[y - 1][x] === p.h)) B[y][x] = sdk;
+  if (!dk && !big && !p.bd && p.inf !== 2) { R(p.sh, 19, 37, 6, 3); R(p.sh, 39, 37, 6, 3); }
+  R(sdk, 32, 34, 1, 4); R(sdk, 31, 38, 3, 1); R('#fff', 32, 33, 1, 1);
+  if (p.bd) { E(32, 43, rx - 1, 7, p.bd); R(p.bd, 26, 41, 12, 2); }
+  if (p.inf) for (let i = 0; i < 7; i++) { px(17 + i, 36 + i, '#9a3b3b'); if (i > 1) px(18 + i, 36 + i, '#c9695f'); } // cicatriz de Takeshi
+  // cabelo da frente
+  R(p.h, 32 - rx, top - 1, 2 * rx + 1, 4); R(p.h, 32 - rx - 1, top + 3, 3, lo ? 14 : 8); R(p.h, 32 + rx - 1, top + 3, 3, lo ? 14 : 8);
+  s.bg.forEach(b => { Sp(b[0], top + 3, b[1], b[2], p.h); R(p.h2, b[0] + 1, top + 3, 1, Math.min(3, b[2] - 2)); });
+  R(p.h2, 22, top, 8, 1); R(p.h2, 36, top + 1, 6, 1);
+  if (p.a) { R(p.a, 40, 9, 9, 5); R(p.a, 42, 7, 5, 9); R('#5a7ad8', 44, 10, 2, 3); }
+  if (s.fx === 'pin') { R(p.t, 42, 17, 6, 2); R(p.t2, 42, 19, 6, 1); }
+  if (s.fx === 'plaster') { R('#f0d8a0', 40, 40, 6, 3); R('#d4b070', 42, 40, 2, 3); }
+  // olhos e sobrancelhas
+  const bl = !dk && t % 3.7 > 3.55, ex = EX[e] || EX.n;
+  [24, 40].forEach((cx, i) => {
+    const cy = 30, ew = s.ew, eh = s.eh + (big ? 1 : 0), out = i ? 1 : -1, n = 2 * ew + 2, ink = p.ey;
+    for (let k = 0; k <= n; k++) R(p.h, cx - ew - 1 + k, cy - s.eh - 4 + Math.round(ex[0] + (ex[1] - ex[0]) * Math.abs(k - (i ? n : 0)) / n), 1, s.bt);
+    if (dk) { E(cx, cy, ew, eh, '#0d0610'); R('#ff2a2a', cx - 1, cy, 2, 2); R('#6a0a14', cx, cy + eh + 1, 1, 6 + ((t * 4) | 0) % 3); }
+    else if (e === 'h' && !bl) { R(ink, cx - ew + 1, cy, 2 * ew - 1, 1); R(ink, cx - ew + 2, cy - 1, 2 * ew - 3, 1); px(cx - ew, cy + 1, ink); px(cx + ew, cy + 1, ink); }
+    else if (bl) { R(ink, cx - ew, cy + 1, 2 * ew + 1, 1); px(cx + out * ew, cy, ink); }
     else {
-      const y = big ? 24 : 25, hh = big ? 9 : 8;
-      r('#fff', x, y, 8, hh); r(p.e, x + 1, y + 1, 6, hh - 1); r(p.ey, x + 1, y + 1, 6, 2); r('rgba(255,255,255,.3)', x + 2, y + hh - 2, 4, 1);
-      r(p.ey, x + 3, y + 3, 2, hh - 4); r('#fff', x + 2, y + 2, 2, 2); r('#e3f4ff', x + 5, y + hh - 3);
-      r(p.ey, x - 1, y - 1, 10, 1); r(p.ey, i ? x + 8 : x - 1, y, 1, 2); r(p.sd, x, y + hh, 8, 1);
-      if (e === 's') { r(p.s, x, y, 8, 1); r('#8fd0ff', x + (i ? 7 : 0), y + hh, 1, 3 + ((t * 3) | 0) % 2); }
-      if (e === 'a') r(p.s, x + (i ? 0 : 4), y, 4, 1);
-      if (h > .6 && Math.sin(t * 3 + i) > .8) r(p.ey, x + 2, y + 2, 4, hh - 3); // pupilas dilatam no terror
+      const gy = e === 's' || e === 'w' ? 1 : 0, ir = e === 'x' ? ew - 2 : ew - 1, pr = e === 'x' ? 0 : (h > .6 && Math.sin(t * 3 + i) > .8 ? 2 : 1), ld = (e === 'a' ? 2 : e === 's' || e === 'w' ? 1 : 0) + s.lid;
+      E(cx, cy, ew, eh, '#fff'); E(cx, cy + gy, ir, eh - gy, p.e); E(cx, cy + gy, Math.min(pr, ir), Math.max(1, eh - gy - 1), ink);
+      px(cx - 1, cy + gy - eh + 1, '#fff'); px(cx - 1, cy + gy - eh + 2, '#fff'); if (eh > 2) px(cx + 1, cy + gy + eh - 2, '#e3f4ff');
+      R(ink, cx - ew, cy - eh - 1, 2 * ew + 1, 1); px(cx + out * (ew + 1), cy - eh, ink); R(sdk, cx - ew + 1, cy + eh + 1, 2 * ew - 1, 1);
+      if (ld) { R(sk, cx - ew, cy - eh, 2 * ew + 1, ld); R(ink, cx - ew, cy - eh + ld - 1, 2 * ew + 1, 1); }
+      if (e === 'a') R(sk, i ? cx - ew : cx + ew - 2, cy - eh + ld, 3, 1);
+      if (e === 's') R('#8fd0ff', cx + out * ew, cy + eh + 1, 1, 3 + ((t * 3) | 0) % 2);
     }
+    if (p.inf || h > .5) R('#a98aa6', cx - ew, cy + s.eh + 2, 2 * ew + 1, 1);
   });
-  if (e === 'x') r('#8fd0ff', 49, 18, 2, 5);
-  if (p.bd) { r(p.bd, 20, 40, 24, 12); r(p.bd, 23, 37, 18, 3); }
-  if (dk) { r('#0d0610', 25, 43, 14, 5); for (let k = 25; k < 39; k += 2) r('#e8e0d0', k, 43, 1, 3); }
-  else if (talk && Math.sin(t * 16) > 0) { r('#6a2a3a', 28, 43, 8, 4); r(mo, 29, 46, 6, 1); r('#d86a7a', 29, 43, 6, 1); }
-  else if (e === 'a') { r('#2a1a20', 26, 44, 12, 2); r('#fff', 27, 44, 10, 1); }
-  else if (big) r('#6a2a3a', 30, 43, 4, 4);
-  else if (e === 'h') { r(mo, 26, 43); r(mo, 27, 44, 10); r(mo, 37, 43); r('#fff', 29, 44, 6, 1); }
-  else if (e === 's') { r(mo, 28, 44, 8); r(mo, 27, 45); r(mo, 36, 45); }
-  else { r(mo, 29, 44, 6); r('#e89aa4', 30, 45, 4, 1); }
-  r(p.h, 13, 9, 38, 10); for (let k = 0; k < 8; k++) r(p.h, 15 + k * 4, 18, 3, 2 + k % 3 * 2);
-  r(p.h, 12, 14, 5, 18); r(p.h, 47, 14, 5, 18); r(p.h2, 18, 11, 10, 1); r(p.h2, 34, 12, 8, 1); r(p.h2, 16, 15, 2, 5); r(p.h2, 44, 14, 2, 6); r('rgba(255,255,255,.18)', 20, 10, 24, 1);
-  if (lo) { r(p.h, 10, 18, 6, 40 + Math.round(Math.sin(t * 2))); r(p.h, 48, 18, 6, 40 - Math.round(Math.sin(t * 2))); }
-  if (p.bun) { r(p.h, 24, 3, 16, 9); r(p.h2, 27, 4, 6, 2); }
-  if (p.a) { r(p.a, 40, 9, 9, 5); r(p.a, 42, 7, 5, 9); r('#5a7ad8', 44, 10, 2, 3); }
+  if (e === 'x') R('#8fd0ff', 49, 18, 2, 5);
+  if (dk) for (let k = 0; k < 5; k++) { px(30 + k, top + 5 + k, '#2b1523'); px(34 + k, top + 9 - k, '#2b1523'); } // rachaduras
+  // boca
+  if (dk) { R('#0d0610', 25, 43, 14, 5); for (let k = 25; k < 39; k += 2) R('#e8e0d0', k, 43, 1, 3); }
+  else if (talk && Math.sin(t * 16) > 0) { R(dm, 28, 43, 8, 4); R(mo, 29, 46, 6, 1); R('#d86a7a', 29, 43, 6, 1); }
+  else if (e === 'a') { R('#2a1a22', 26, 44, 12, 2); R('#fff', 27, 44, 10, 1); }
+  else if (e === 'x') { R(dm, 29, 43, 6, 4); R('#fff', 30, 43, 4, 1); }
+  else if (e === 'o') R(dm, 30, 43, 4, 5);
+  else if (e === 'h') { if (s.soft || s.thin) { R(mo, 28, 44, 8); px(27, 43, mo); px(36, 43, mo); } else { px(26, 43, mo); R(mo, 27, 44, 10); px(37, 43, mo); R('#fff', 29, 44, 6, 1); } }
+  else if (e === 's') { R(mo, 28, 44, 8); px(27, 45, mo); px(36, 45, mo); }
+  else if (e === 'w') { R(mo, 28, 45, 3); R(mo, 31, 44, 3); R(mo, 34, 45, 3); }
+  else if (s.smirk) { R(mo, 29, 44, 5); px(34, 43, mo); px(35, 42, mo); }
+  else if (s.soft) { R(mo, 30, 44, 4); R('#e89aa4', 31, 45, 2, 1); }
+  else if (s.thin) R(mo, 29, 44, 6);
+  else { R(mo, 29, 44, 6); R('#e89aa4', 30, 45, 4, 1); }
+  // contorno automático (só na silhueta) e pintura
+  const edge = []; for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (!B[y][x] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(d => B[y + d[1]] && B[y + d[1]][x + d[0]])) edge.push([x, y]);
+  edge.forEach(q => B[q[1]][q[0]] = ln);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (B[y][x]) { c.fillStyle = B[y][x]; c.fillRect(x, y, 1, 1); }
   if (h > .5 && Math.random() < h * .05) { const y = Math.random() * 56 | 0; c.drawImage(this.cv, 0, y, 64, 4, (Math.random() * 7 | 0) - 3, y, 64, 4); }
-  r('rgba(0,0,0,.2)', 0, 0, 1, 64); r('rgba(0,0,0,.2)', 63, 0, 1, 64);
+  c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(0, 0, 1, 64); c.fillRect(63, 0, 1, 64);
 };
 
 /* ---------- desenhos novos (reaproveitam o minigame de Draw) ---------- */
