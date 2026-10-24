@@ -1168,5 +1168,101 @@ L.hana[10] = [[Ha('Koharu... vem comigo até a praça. Por favor. Eu preciso que
 STEPS[9].push(['esp', 'olhar o chá esquecido na mesa']); STEPS[10].push(['hr', 'acompanhar a Hana até a praça, à noite']);
 })();
 
+
+/* ===== kessai-plus3: casas exploráveis, diário, escolhas, missão secundária e salvamento ===== */
+(() => {
+const M = World.maps, V = M.vila, N = nar, ch = n => G.ch >= n, T = (t, e) => ['Tsuta', t, e];
+G.tr2 = {};
+const trust = (w, d) => { G.tr2[w] = (G.tr2[w] | 0) + d; };
+document.head.insertAdjacentHTML('beforeend', '<style>#diary,#ask{justify-content:flex-start;padding:calc(var(--s)*8px);gap:calc(var(--s)*2px);font-size:calc(var(--s)*4px)}#ask{justify-content:center;gap:calc(var(--s)*5px)}#diary h2{font-size:calc(var(--s)*8px)}#diary p{text-align:left;max-width:calc(var(--s)*290px)}</style>');
+const mkp = id => { const d = document.createElement('div'); d.id = id; d.className = 'panel'; d.hidden = true; $('stage').appendChild(d); return d; }, dv = mkp('diary'), av = mkp('ask');
+
+/* ---------- 1) novas construções no mapa da vila ---------- */
+const put = (c, x, y, w = 1, h = 1) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) V.g[j][i] = c; };
+const bld = (x, y, w) => { put('R', x, y, w, 2); put('#', x, y + 2, w); };
+bld(10, 14, 4); bld(19, 21, 5); bld(39, 14, 4); put('.', 40, 17);
+
+/* ---------- 2) interiores: cada casa conta algo sobre quem vive ali e muda com o capítulo ---------- */
+const room = (w, h, dx, tx, ty, objs) => ({ w, h, indoor: true, doors: [{ x: dx, y: h - 1, w: 2, h: 1, to: 'vila', tx, ty }], objs, npcs: [],
+  g: Array.from({ length: h }, (_, j) => Array.from({ length: w }, (_, i) => j === 0 ? 'S' : j === h - 1 ? (i >= dx && i < dx + 2 ? 'D' : '#') : i === 0 || i === w - 1 ? '#' : '=')),
+  get tint() { return ch(9) ? 'rgba(40,20,70,.3)' : ch(6) ? 'rgba(110,140,200,.14)' : 'rgba(255,190,140,.14)'; } });
+const O = (t, x, y, k, talk, w) => ({ t, x, y, w, k, talk }), X = (o, e) => Object.assign(o, e);
+const wilt = () => N(ch(8) ? 'As folhas estão negras e quebradiças, e a terra parece cinza.' : ch(6) ? 'As pontas das folhas começam a amarelar. Ninguém sabe por quê.' : 'Mudas viçosas, cada uma com uma etiqueta de papel.');
+const ao = Art.obj; Art.obj = (g, t, x, y) => t === 'can' ? (rc(g, '#4a7aa8', x + 4, y + 7, 8, 7), rc(g, '#7aa8d0', x + 4, y + 7, 8, 2), rc(g, '#4a7aa8', x + 11, y + 5, 4, 2), rc(g, '#35587c', x + 2, y + 6, 2, 3)) : ao(g, t, x, y);
+
+Object.assign(M, {
+  casaHana: room(12, 9, 5, 15, 10, [O('pot', 2, 2, 0, () => [wilt()]), O('pot', 3, 2, 0, () => [wilt()]),
+    O('scroll', 5, 0, 'hn1', G => ch(8) ? [N('Um desenho de criança: Hana, os pais e o jardim. Uma quarta figura, sem rosto, segura a mão dela.'), kh('Hana diz que é "a vizinha". Mas as mãos estão dadas...', 'x')] : [N('Um desenho de criança: Hana, os pais e o jardim de flores brancas.'), kh('Ela sempre desenhou as flores primeiro, e as pessoas depois.', 'n')]),
+    O('table', 5, 4, 'hn2', G => ch(9) ? [N('A mesa está posta para quatro. Só três tigelas estão mornas.'), kh('Quatro? Quem é o quarto?', 'x')] : ch(6) ? [N('Um bilhete da mãe de Hana: "As brancas só pegam no solo de casa. Nunca replante fora do jardim."'), kh('Então as flores dela não existem em lugar nenhum além daqui.', 'n')] : [N('Chá de cevada e dois bolinhos embrulhados. Um bilhete: "Para a Koharu, se ela passar."'), kh('...Que gentileza.', 'h')], 2),
+    X(O('chest', 9, 2, 'hn3', G => ch(6) && G.fl >= 1 && !G.seen.hn_c ? [N('O pote de sementes das brancas. Por cima, um bilhete de Hana: "Koharu, foi você quem pintou as flores? Minha mãe viu você com o papel no jardim."')] : G.fl >= 3 ? [N('O pote de sementes está vazio. Só restou o bilhete: "Guarde uma para mim."')] : [N('Um pote de sementes das flores brancas, cada uma embrulhada em papel de seda.')]),
+      { after: G => { if (ch(6) && G.fl >= 1 && !G.seen.hn_c) ask('O que Koharu responde a Hana?', ['Contar a verdade', 'Dizer que foi só um estudo'], i => { G.seen.hn_c = 1; G.seen.hn_v = i ? 2 : 1; trust('hana', i ? -1 : 1); Dialogue.start(i ? [kh('Foi só um estudo, Hana. Deixei a mentira no bilhete.', 's'), N('A letra de Koharu tremeu no papel.')] : [kh('Fui eu. Eu pintei as flores. Não sei o que isso significa.', 's'), N('Pela primeira vez, ela escreveu a verdade para alguém.')], adv); }); } }),
+    X(O('can', 7, 2, 'rgh', () => [N('O regador azul da Tsuta. Hana deve ter esquecido de devolver.')]), { on: G => G.seen.rg_s && !G.seen.rg_f, after: G => { G.seen.rg_f = 1; } })]),
+  casaRen: room(12, 9, 5, 40, 17, [
+    O('table', 3, 4, 'rn1', G => ch(9) ? [N('O almoço de Ren esfriou na marmita. Ninguém o chamou para comer.'), kh('Ninguém nesta casa parece perceber...', 'x')] : [N('Uma marmita com bolinhos de arroz e um bilhete: "Volte antes de escurecer, Ren." O papel tem marcas de dedo, de quem relê.'), kh('Uma mãe que espera.', 's')], 2),
+    O('scroll', 6, 0, 'rn2', G => ch(9) ? [N('Os desenhos de Ren: sapos, barcos, a Hana. E Koharu, com os olhos riscados de preto.'), kh('Ele disse que acabou o lápis claro. Eu quero acreditar.', 'x')] : [N('Os desenhos de Ren: sapos, barcos, Hana de tranças. E uma moça de cabelo azul-noite, pintando sob uma cerejeira.'), kh('Ele me desenhou...', 'h')]),
+    O('chest', 9, 2, 'rn3', G => ch(9) ? [N('O pote de anzóis está vazio. A vara, torta num canto. Ren deixou de pescar.')] : [N(G.seen.ph1 ? 'A vara de Ren. Na parede, a bota que ele pescou, pendurada como troféu.' : 'A vara de pescar de Ren, mais alta que ele. Anzóis arrumados por tamanho.')])]),
+  casaTakeshi: room(12, 9, 5, 32, 10, [
+    O('chest', 2, 2, 'tk2', () => [N('Armadilhas e cordas, bem arrumadas. Numa tábua, pregos com nomes: "lebre", "raposa". O último prego não tem nome.')]),
+    O('scroll', 5, 0, 'tk1', G => ch(6) ? [N('O mapa do bosque: cruzes vermelhas ligam a clareira à ponte. Uma cruz nova está desenhada sobre esta casa.')] : [N('O mapa do bosque, cheio de cruzes vermelhas e anotações de pegadas.'), kh('Ele conhece cada pedra daqui.', 'n')]),
+    O('table', 6, 4, 'tk3', G => ch(6) ? [N('Ataduras manchadas. O diário aberto: "O braço arde. À noite, o riacho me chama pelo nome."'), N('A última linha é a mesma frase, escrita doze vezes.')] : [N('Um diário de caçador: pegadas desenhadas, datas, o tempo de cada dia. Na margem: "cervo, perto demais".')], 2),
+    O('scroll', 9, 0, 'tk4', G => ch(5) ? [N('Estudos em carvão de um cervo, com as bordas queimadas. No canto, um "S" pequeno.'), kh('Esse traço é da mamãe. Ela desenhou o cervo... e queimou o papel.', 'x')] : [N('Estudos em carvão de um cervo, com as bordas queimadas e um "S" no canto.'), kh('Quem desenha assim, queima o que desenha?', 'n')])]),
+  lojaSumi: room(12, 9, 5, 23, 8, [
+    O('table', 3, 4, 'sm1', G => ch(9) && G.seen.e1 ? [N('O chá ainda está morno. O livro-caixa está aberto na página de Koharu: pincéis, sem preço.'), kh('Ela sumiu no meio de uma frase.', 'x')] : [N('O livro-caixa. Página após página: "S. - tinta preta e papel branco, sempre aos pares". Última linha, no inverno: "para a menina, quando voltar".'), kh('Aos pares? Um para pintar, outro para...?', 'o')], 2),
+    O('scroll', 6, 0, 'sm3', G => G.tr >= 3 ? [N('O quadro do santuário na primavera. A árvore sagrada não está nele.'), kh('A dona Sumi jurava que o quadro sempre foi assim.', 'x')] : [N('Um quadro do santuário na primavera, com a grande árvore ao centro.'), kh('Trezentos anos de sombra, numa moldura.', 'n')]),
+    X(O('chest', 9, 2, 0, () => ch(8) ? [N('No fundo da gaveta, um envelope: "Sumi, guarde para a Koharu, se ela voltar. Não a deixe pintar o que ama. - S."'), kh('Ela guardou isto por anos... e me deu os pincéis mesmo assim.', 's')] : [N('Gaveta de papéis de arroz. Há um envelope lacrado no fundo, mas não é meu para abrir.')]), { after: G => { if (ch(8)) G.seen.lt2 = 1; } })]),
+  casaGenji: room(12, 9, 5, 11, 17, [
+    O('table', 3, 4, 'gj1', G => ch(8) ? [N('Os diários do avô de Genji. Uma página marcada: "Ela pintava o rosto da filha todo dia. O papel ficava mais nítido; a menina, mais fraca. A memória cobra aluguel."'), kh('O que se pinta ganha lugar no papel... e perde lugar no mundo.', 'x')] : [N('Diários antigos, em caligrafia miúda, cheios de desenhos de aves. Uma frase se repete: "Os pássaros se calam antes."'), kh('Ele sabia, e escreveu como quem avisa.', 'n')], 2),
+    O('scroll', 6, 0, 'gj3', G => ch(9) && G.seen.e2 ? [N('A fotografia do santuário. O espaço vazio na primeira fila aumentou: era o lugar do Genji.'), kh('Eles estavam aqui ontem...', 'x')] : [N('Uma fotografia do santuário: aldeões em fileiras. Na primeira fila há um espaço vazio, onde alguém deveria estar.'), kh('Quem faltou nesse dia?', 'o')]),
+    O('chest', 9, 2, 'gj2', () => [N('Sinos de bronze e fitas do santuário, embrulhados em pano. Num deles está gravado: "O que se pinta, permanece."')])]),
+  floricultura: room(12, 9, 5, 21, 24, [O('pot', 2, 2, 0, () => [wilt()]), O('pot', 3, 2, 0, () => [wilt()]), O('pot', 9, 2, 0, () => [wilt()]),
+    X(O('table', 5, 4, 'fl1', G => G.seen.rg_d ? [T('O regador voltou ao lugar. Obrigada, menina.', 'h')] : G.seen.rg_f ? [N('Koharu devolve o regador azul ao balcão. Embaixo da caixa registradora, um envelope com o nome dela.')] : G.seen.rg_s ? [N('O bilhete no balcão: "Perdi o regador azul. A Hana pegou? - T." Ele não está aqui.')] : [N('O balcão da floricultura. Um bilhete: "Perdi o regador azul. Alguém viu? - T."')], 2),
+      { after: G => { if (!G.seen.rg_s) G.seen.rg_s = 1; else if (G.seen.rg_f && !G.seen.rg_d) { G.seen.rg_d = 1; G.seen.lt5 = 1; Dialogue.start([N('"Koharu, meu amor. Se um dia você pintar algo e sentir que ficou mais vivo no papel do que na vida, pare. Eu parei. Mas não aprendi a tempo como ensinar você a perder."'), kh('Mamãe...', 's'), T('Ela me pediu que entregasse quando alguém regasse o jardim com cuidado. Você regou.', 's')], adv); } objective(); } }),
+    O('scroll', 9, 0, 'fl2', () => [N('Uma foto da floricultura, anos atrás: Tsuta e uma jovem de pincel na mão, rindo diante de flores brancas.'), kh('Mamãe, tão jovem. Ela ria assim...', 's')])])
+});
+
+/* ---------- 3) portas de entrada: trancadas até o jogador conhecer o dono ---------- */
+const enter = (x, y, to, tx, ty, lock, msg) => ({ t: 'noren', x, y, talk: G => lock(G) ? [kh('Com licença...', 'n')] : [kh(msg, 'n')], after: G => { if (lock(G)) G.fade = { a: 0, out: true, d: { to, tx, ty } }; } });
+const old = [[15, 9], [23, 7], [32, 9]]; V.objs = V.objs.filter(o => !(o.t === 'noren' && old.some(([x, y]) => o.x === x && o.y === y)));
+V.objs.push(
+  enter(15, 9, 'casaHana', 5, 7, G => G.met.hana, 'A casa da Hana. Pela janela, vasos e mais vasos de flores. Melhor conhecer a dona antes de bater.'),
+  enter(23, 7, 'lojaSumi', 5, 7, G => G.met.sumi, 'A loja de papel e tintas da dona Sumi. Melhor falar com ela antes de entrar.'),
+  enter(32, 9, 'casaTakeshi', 5, 7, G => G.met.take, 'A casa do Takeshi, com armadilhas ao lado da porta. Melhor esperar um convite.'),
+  enter(11, 16, 'casaGenji', 5, 7, G => G.met.genji && ch(5), 'A casa de Genji, de portas de papel. Fechada por dentro, por enquanto.'),
+  enter(21, 23, 'floricultura', 5, 7, G => ch(2), 'A floricultura da dona Tsuta. Hoje está fechada.'),
+  enter(40, 16, 'casaRen', 5, 7, G => G.met.ren, 'A casa de Ren e da família. Cheiro de peixe frito vem de dentro. Melhor ele me chamar.'));
+
+/* ---------- 4) diário de Koharu (tecla J) e escolhas ---------- */
+const DI = { reg: 'Os registros do santuário falam de uma artista que pintava a vila inteira.', pz: 'Pedras do pátio: o que se pinta, permanece; o que permanece pesa; o que pesa quer ser solto.', esb: 'Nos meus esboços há uma sombra que eu não desenhei.', cad: 'O caderno da gueixa: preservar a memória não é impedir a perda.',
+  hn1: 'Hana desenhou a família ainda criança. Só depois reparei na quarta figura.', hn2: 'A mãe de Hana avisou: as flores brancas só vivem no solo da família.', hn3: 'Hana guardou sementes das brancas e me perguntou se fui eu quem pintou as flores.',
+  rn1: 'A mãe de Ren espera por ele todo fim de tarde.', rn2: 'Ren me desenhou. Depois, desenhou meus olhos pretos.', rn3: 'A vara e a bota de Ren: ele ama pescar.',
+  tk1: 'Takeshi marca o caminho do cervo no mapa. As cruzes chegaram até a casa dele.', tk2: 'O último prego da tábua de Takeshi não tem nome.', tk3: 'Takeshi escreve que o riacho o chama pelo nome.', tk4: 'A mamãe desenhou o cervo, e depois queimou o papel.',
+  sm1: 'A mamãe comprava tinta e papel aos pares. Um para pintar, outro para...?', sm3: 'O quadro do santuário na loja de Sumi.', lt2: 'Carta guardada por Sumi: a mamãe pediu que eu não pintasse o que amo.',
+  gj1: 'O avô de Genji anotou: o que se pinta fica mais nítido no papel e mais fraco no mundo.', gj2: 'Os sinos do santuário trazem a frase: o que se pinta, permanece.', gj3: 'Na foto do santuário, alguém faltou na primeira fila.',
+  fl1: 'Tsuta perdeu o regador azul.', fl2: 'Tsuta e a mamãe, jovens, riam diante de flores brancas.', lt5: 'Carta da mamãe: se o papel ficar mais vivo que a vida, pare.' };
+function ask(q, opts, cb) { G.mode = 'choice'; av.innerHTML = '<p></p>'; av.firstChild.textContent = q; opts.forEach((o, i) => { const b = document.createElement('button'); b.textContent = o; b.onclick = () => { av.hidden = true; G.mode = 'play'; cb(i); }; av.appendChild(b); }); av.hidden = false; av.querySelector('button').focus(); }
+function showDiary() { const e = Object.keys(DI).filter(k => G.seen[k]); dv.innerHTML = '<h2>Diário de Koharu</h2><p class="sub"></p>'; dv.children[1].textContent = `${e.length} de ${Object.keys(DI).length} anotações${e.length > 9 ? ' (últimas 9)' : ''} · J ou Esc: fechar`; e.slice(-9).forEach(k => { const p = document.createElement('p'); p.textContent = '✿ ' + DI[k]; dv.appendChild(p); }); dv.hidden = false; G.mode = 'diary'; }
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (G.mode === 'diary' && (k === 'j' || e.key === 'Escape')) { dv.hidden = true; G.mode = 'play'; }
+  else if (G.mode === 'play' && k === 'j' && !e.repeat && !Dialogue.active && !Cut.active && !G.fade) showDiary();
+  else if (G.mode === 'choice' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { const b = [...av.querySelectorAll('button')], i = b.indexOf(document.activeElement); b[(i + (e.key === 'ArrowDown' ? 1 : b.length - 1)) % b.length].focus(); }
+});
+/* a escolha sobre as flores muda a fala da Hana no epílogo */
+const dyn = (f, m) => { const a = [0, m]; Object.defineProperty(a, 0, { get: f }); return a; };
+L.hana[12] = dyn(() => [Ha(G.seen.hn_v === 1 ? 'Você me contou sobre as flores desde cedo. Eu devia ter escutado melhor.' : G.seen.hn_v === 2 ? 'Você disse que era só um estudo. Eu quis tanto acreditar...' : 'A vila aos poucos se acalma. O jardim ficou vazio sem as flores...', 's'), kh('Plantamos outras. Eu ajudo.', 'h'), Ha('Eu gostaria muito.', 'h')], 'ep0');
+
+/* ---------- 5) salvamento local e "Continuar" ---------- */
+const SK = 'kessai_save_v1';
+function save() { if (G.mode !== 'play' || Cut.active || G.fade || !G.map) return; try { localStorage.setItem(SK, JSON.stringify({ seen: G.seen, met: G.met, fitas: G.fitas, fg: G.fg, tr2: G.tr2, ch: G.ch, open: G.open, s4: G.s4, s5: G.s5, fl: G.fl, tr: G.tr, w: G.w, id: G.id, x: Player.x, y: Player.y })); } catch (e) {} }
+const o3 = objective; objective = function () { o3(); const h = $('hud'); if (G.seen.rg_s && !G.seen.rg_d) h.textContent += (/Extra:/.test(h.textContent) ? ', ' : ' · Extra: ') + (G.seen.rg_f ? 'devolver o regador à Tsuta' : 'achar o regador azul da Tsuta'); setTimeout(save, 0); };
+const ld = load; load = function (id, tx, ty) { ld(id, tx, ty); setTimeout(save, 700); };
+const ng3 = newGame; newGame = function () { G.tr2 = {}; ng3(); };
+const cont = document.createElement('button'); cont.textContent = 'Continuar'; try { cont.hidden = !localStorage.getItem(SK); } catch (e) { cont.hidden = true; } $('start').before(cont);
+cont.onclick = () => { $('title').hidden = true; loadScreen(3, () => { let d; try { d = JSON.parse(localStorage.getItem(SK)); } catch (e) {} G.mode = 'play'; if (!d) return newGame(); World.reset(); Ambient.reset(); Dialogue.stop();
+  Object.assign(G, { seen: d.seen, met: d.met, fitas: d.fitas, fg: d.fg, tr2: d.tr2 || {}, ch: d.ch, open: d.open, s4: d.s4, s5: d.s5, fl: d.fl, tr: d.tr, w: d.w, bird: null, deer: null, gh: null, fade: null, tint: null });
+  V.npcs.forEach(n => { if (n.pal === 'take0' && G.ch >= 6) n.pal = 'take1'; }); load(d.id, 0, 0); Player.x = d.x; Player.y = d.y; objective(); }); };
+$('title').querySelectorAll('p')[1].innerHTML += '<br>Diário: J';
+})();
+
 </script>
 </body></html>
